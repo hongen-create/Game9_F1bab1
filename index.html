@@ -4,6 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Game Level Selection</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0b0d10">
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- iOS / Apple Web App Capabilities -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Game Map">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
     <style>
         * {
             box-sizing: border-box;
@@ -19,8 +30,11 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            min-height: 100dvh; /* Modern dynamic viewport height */
             overflow: hidden;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            /* Safe area padding to prevent UI elements from clipping behind device notches */
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
         }
 
         /* Scalable Main Game Wrapper (Camera Viewport Mask) */
@@ -28,6 +42,7 @@
             position: relative;
             width: 100%;
             height: 100vh;
+            height: 100dvh; /* Modern dynamic viewport height */
             display: flex;
             justify-content: center;
             align-items: center;
@@ -633,6 +648,15 @@
 
         // Run badge construction on load
         window.addEventListener('DOMContentLoaded', generateBadges);
+
+        // --- PWA SERVICE WORKER REGISTRATION ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker registered inside game scope:', reg.scope))
+                    .catch(err => console.error('Service Worker registration failed:', err));
+            });
+        }
     </script>
 </body>
 </html>
