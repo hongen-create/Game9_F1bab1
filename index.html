@@ -33,11 +33,147 @@
             min-height: 100dvh; /* Modern dynamic viewport height */
             overflow: hidden;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            /* Safe area padding to prevent UI elements from clipping behind device notches */
-            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+            padding: 0;
+            margin: 0;
         }
 
-        /* Scalable Main Game Wrapper (Camera Viewport Mask) */
+        /* Fullscreen Loading Screen with Fantasy Theme */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            background-color: #0b0d10;
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .loading-screen.fade-out {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .loading-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            width: 80%;
+            max-width: 400px;
+        }
+
+        /* Stylized Game Title Logo */
+        .game-logo {
+            font-size: 2rem;
+            color: #ffd700;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            margin-bottom: 2rem;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5), 0 0 20px rgba(255, 140, 0, 0.3);
+            font-family: Georgia, serif;
+            font-weight: bold;
+            animation: logoPulse 2.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes logoPulse {
+            0% {
+                transform: scale(0.98);
+                text-shadow: 0 0 10px rgba(255, 215, 0, 0.4), 0 0 20px rgba(255, 140, 0, 0.2);
+            }
+            100% {
+                transform: scale(1.02);
+                text-shadow: 0 0 15px rgba(255, 215, 0, 0.7), 0 0 30px rgba(255, 140, 0, 0.5);
+            }
+        }
+
+        /* Spinner Container */
+        .spinner-container {
+            position: relative;
+            width: 70px;
+            height: 70px;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Golden Fantasy Spinner */
+        .fantasy-spinner {
+            box-sizing: border-box;
+            width: 100%;
+            height: 100%;
+            border: 3px solid rgba(255, 215, 0, 0.15);
+            border-top-color: #ffd700;
+            border-bottom-color: #ffd700;
+            border-radius: 50%;
+            animation: spin 1.2s linear infinite;
+            filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.5));
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Loading Label and Percentage */
+        .loading-text-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.1rem;
+            color: #e0e4eb;
+            letter-spacing: 2px;
+            margin-bottom: 0.8rem;
+            font-family: monospace, sans-serif;
+        }
+
+        .loading-label {
+            font-weight: 300;
+        }
+
+        .loading-percentage {
+            color: #ffd700;
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+        }
+
+        /* Progress Bar Container */
+        .progress-bar-bg {
+            width: 100%;
+            height: 6px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 215, 0, 0.1);
+        }
+
+        /* Progress Bar Active Fill */
+        .progress-bar-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #b8860b, #ffd700, #b8860b);
+            background-size: 200% 100%;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+            border-radius: 3px;
+            transition: width 0.1s linear;
+            animation: progressGlow 1.5s linear infinite;
+        }
+
+        @keyframes progressGlow {
+            0% {
+                background-position: 0% 50%;
+            }
+            100% {
+                background-position: 200% 50%;
+            }
+        }
+
+        /* Scalable Main Game Wrapper */
         .game-wrapper {
             position: relative;
             width: 100%;
@@ -48,13 +184,11 @@
             align-items: center;
             overflow: hidden;
             touch-action: none; /* Disables standard browser zooming/panning */
+            opacity: 0;
+            transition: opacity 0.5s ease;
         }
 
-        /* 
-           Container:
-           - Sized dynamically in JS based on viewport aspect ratio.
-           - Proportional scaling prevents any graphical stretching or cropping.
-        */
+        /* Container with standard shadows on desktop, customized on mobile */
         .map-container {
             position: relative;
             display: inline-block;
@@ -66,7 +200,15 @@
             transform-style: preserve-3d;
         }
 
-        /* The map artwork itself (static background artwork layer only) */
+        /* Remove border-radius and shadows on mobile for an edge-to-edge finish */
+        @media (max-width: 768px) {
+            .map-container {
+                border-radius: 0;
+                box-shadow: none;
+            }
+        }
+
+        /* The map artwork layout */
         .map-bg {
             display: block;
             width: 100%;
@@ -74,7 +216,7 @@
             pointer-events: none;
         }
 
-        /* Overlay for interactive buttons matches map dimensions precisely */
+        /* Overlay for interactive buttons */
         .interactive-overlay {
             position: absolute;
             top: 0;
@@ -82,15 +224,10 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
-            overflow: visible; /* Allows glowing filters to expand freely */
+            overflow: visible;
         }
 
-        /* 
-           Mission Badge:
-           - Sized proportionally relative to the container (9.3% width).
-           - Stands as a fully visible, independent layer.
-           - Employs 3D transform layers for optimized, non-clipped transitions.
-        */
+        /* Mission Badge Layer */
         .mission-badge {
             position: absolute;
             width: 9.3%; 
@@ -101,21 +238,19 @@
             pointer-events: auto;
             touch-action: manipulation;
             overflow: visible; 
-            opacity: 1; /* Fully visible standalone layer */
+            opacity: 1;
             
-            /* Prevent WebKit subpixel clipping on scaling */
             -webkit-backface-visibility: hidden;
             backface-visibility: hidden;
             -webkit-transform-style: preserve-3d;
             transform-style: preserve-3d;
             will-change: transform;
             
-            /* Symmetrical scaling transitions */
             transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1), 
                         filter 0.25s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
-        /* Image element for the transparent PNG badge */
+        /* Image inside badge */
         .badge-img {
             display: block;
             width: 100%;
@@ -124,7 +259,7 @@
             pointer-events: none;
         }
 
-        /* Hover Behavior (Desktop Only): Centered scale & lift */
+        /* Hover Behavior (Desktop Only) */
         @media (hover: hover) {
             .mission-badge:hover {
                 transform: translate3d(-50%, calc(-50% - 2px), 0) scale(1.05);
@@ -132,7 +267,7 @@
             }
         }
 
-        /* Click / Tap Active Sequence (Pop & Glow Bounce) */
+        /* Active Sequence (Pop & Glow Bounce) */
         .mission-badge.clicked {
             pointer-events: none;
             animation: badgeBounceAndGlow 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
@@ -154,11 +289,7 @@
             }
         }
 
-        /* 
-           Diagonal Golden Shine Sweep:
-           - Static circular overlay clipped with border-radius.
-           - Mix-blend-mode blends golden shine details with the underlying PNG graphics.
-        */
+        /* Shine Sweep Overlay */
         .mission-badge::after {
             content: '';
             position: absolute;
@@ -197,7 +328,7 @@
             }
         }
 
-        /* Transparent hotspot overlays with no visible rings or borders */
+        /* Transparent Hotspots */
         .ui-button {
             position: absolute;
             transform: translate(-50%, -50%);
@@ -212,10 +343,28 @@
 </head>
 <body>
 
+    <!-- Fantasy-themed Fullscreen Loading Screen -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-content">
+            <h1 class="game-logo">Level Selection</h1>
+            <div class="spinner-container">
+                <div class="fantasy-spinner"></div>
+            </div>
+            <div class="loading-text-container">
+                <span class="loading-label">Loading</span>
+                <span class="loading-percentage" id="loadingPercentage">0%</span>
+            </div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="progressBarFill"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Game Viewport -->
     <div class="game-wrapper" id="gameViewport">
         <div class="map-container" id="mapLayer">
-            <!-- Background Map Image (Static only) -->
-            <img src="map.png" alt="Game Selection Map" class="map-bg" id="mapImage">
+            <!-- Background Map Image (Source resolved programmatically) -->
+            <img alt="Game Selection Map" class="map-bg" id="mapImage">
             
             <!-- Dynamic Interactive Overlays Layer -->
             <div class="interactive-overlay" id="interactiveOverlay">
@@ -238,6 +387,20 @@
             { id: 7, image: 'badge7.png', x: 84.1, y: 41.5, level: 'level7.html' },
             { id: 8, image: 'badge8.png', x: 79.7, y: 19.4, level: 'level8.html' },
             { id: 9, image: 'badge9.png', x: 20.3, y: 19.4, level: 'level9.html' }
+        ];
+
+        // Combined Assets list for Promise-based Preloading
+        const ASSETS = [
+            'map.png',
+            'badge1.png',
+            'badge2.png',
+            'badge3.png',
+            'badge4.png',
+            'badge5.png',
+            'badge6.png',
+            'badge7.png',
+            'badge8.png',
+            'badge9.png'
         ];
 
         // Web Audio Synthesizer (magical ding effect)
@@ -273,7 +436,6 @@
         const mapImage = document.getElementById('mapImage');
 
         // Independent, decoupled camera target variables
-        // Resets automatically to 100% scale and center on session start/return
         let targetCameraScale = 1.0;
         let targetCameraX = 0;
         let targetCameraY = 0;
@@ -315,6 +477,34 @@
         let mapW = 0;
         let mapH = 0;
 
+        // Tracker for primary initialization
+        let isInitialLoad = true;
+
+        // Set default camera position
+        function setInitialCamera() {
+            const isMobile = window.innerWidth <= 768;
+            if (isMobile) {
+                // Cover mode naturally overflows. A default zoom of 1.25 centers beautifully on the main path,
+                // and provides tactile room to pan smoothly in both directions.
+                targetCameraScale = 1.25;
+                targetCameraX = 0;
+                targetCameraY = 0;
+            } else {
+                targetCameraScale = 1.0;
+                targetCameraX = 0;
+                targetCameraY = 0;
+            }
+
+            if (isInitialLoad) {
+                currentCameraScale = targetCameraScale;
+                currentCameraX = targetCameraX;
+                currentCameraY = targetCameraY;
+                isInitialLoad = false;
+            }
+            
+            clampBounds();
+        }
+
         // Dynamic, proportional aspect ratio resolution
         function updateMapDimensions() {
             viewW = viewport.clientWidth;
@@ -323,37 +513,63 @@
             const mapAspectRatio = 1000 / 1482; // Native aspect ratio of map.png
             const viewAspectRatio = viewW / viewH;
 
-            // Fit using contain logic to display the map as large as possible without any cropping
-            if (viewAspectRatio > mapAspectRatio) {
-                // Viewport is wider than the map aspect ratio. Constrain by height.
-                mapH = viewH;
-                mapW = viewH * mapAspectRatio;
+            const isMobile = window.innerWidth <= 768;
+
+            if (isMobile) {
+                // Cover Logic: Scale map up to completely fill screen with zero empty borders
+                if (viewAspectRatio > mapAspectRatio) {
+                    mapW = viewW;
+                    mapH = viewW / mapAspectRatio;
+                } else {
+                    mapH = viewH;
+                    mapW = viewH * mapAspectRatio;
+                }
             } else {
-                // Viewport is narrower than the map aspect ratio. Constrain by width.
-                mapW = viewW;
-                mapH = viewW / mapAspectRatio;
+                // Contain Logic: Keep entire map perfectly visible on desktop
+                if (viewAspectRatio > mapAspectRatio) {
+                    mapH = viewH;
+                    mapW = viewH * mapAspectRatio;
+                } else {
+                    mapW = viewW;
+                    mapH = viewW / mapAspectRatio;
+                }
             }
 
             mapContainer.style.width = `${mapW}px`;
             mapContainer.style.height = `${mapH}px`;
 
-            clampBounds();
+            if (isInitialLoad) {
+                setInitialCamera();
+            } else {
+                clampBounds();
+            }
         }
 
-        window.addEventListener('resize', updateMapDimensions);
-        mapImage.addEventListener('load', updateMapDimensions);
-        viewport.addEventListener('pointerdown', updateMapDimensions);
+        // Track screen sizing changes safely
+        let lastWidth = window.innerWidth;
+        let lastHeight = window.innerHeight;
 
-        // Fallback safety sweep interval to guarantee dimensions align on late cache parsing
-        const dimensionInterval = setInterval(() => {
-            updateMapDimensions();
-            if (mapW > 0) clearInterval(dimensionInterval);
-        }, 100);
+        function handleResize() {
+            const currentWidth = window.innerWidth;
+            const currentHeight = window.innerHeight;
+            
+            // Re-render layout only if boundaries shift significantly (avoids address bar jitter)
+            if (Math.abs(currentWidth - lastWidth) > 5 || Math.abs(currentHeight - lastHeight) > 15) {
+                lastWidth = currentWidth;
+                lastHeight = currentHeight;
+                updateMapDimensions();
+            }
+        }
+
+        window.addEventListener('resize', handleResize);
+        window.addEventListener('orientationchange', () => {
+            setTimeout(updateMapDimensions, 150); // Settle browser UI transition
+        });
 
         // Easing interpolation
         const lerp = (start, end, amt) => (1 - amt) * start + amt * end;
 
-        // Camera bounding clamp algorithm: locks boundaries strictly inside viewport bounds
+        // Camera bounding clamp algorithm
         function clampBounds() {
             if (mapW === 0 || mapH === 0) return;
 
@@ -376,7 +592,7 @@
             }
         }
 
-        // Independent coordinate zoom: pushes target scale and targets viewport coordinates
+        // Zoom function
         function zoomToPoint(zoomCenterViewportX, zoomCenterViewportY, newScale) {
             newScale = Math.max(1.0, Math.min(2.0, newScale));
             if (newScale === targetCameraScale) return;
@@ -394,13 +610,12 @@
 
         // --- POINTER EVENTS SYSTEM ---
         viewport.addEventListener('pointerdown', (e) => {
-            // Check if pointer down targets an interactive layout element
             pressedBadge = e.target.closest('.mission-badge');
             pressedUIButton = e.target.closest('.ui-button');
 
             activePointers.push(e);
             isPointerDown = true;
-            vx = 0; // Prevent friction slides from interfering with new contacts
+            vx = 0; 
             vy = 0;
 
             if (activePointers.length === 1) {
@@ -408,13 +623,12 @@
                 startY = e.clientY;
                 startTargetCameraX = targetCameraX;
                 startTargetCameraY = targetCameraY;
-                dragExceeded = false; // Reset before every new interaction session
+                dragExceeded = false;
 
                 lastPointerX = e.clientX;
                 lastPointerY = e.clientY;
                 lastPointerTime = performance.now();
             } else if (activePointers.length === 2) {
-                // Multi-finger interactions are treated as camera pan/pinch. Disable tap clicks
                 pressedBadge = null;
                 pressedUIButton = null;
                 dragExceeded = true;
@@ -447,13 +661,15 @@
                 }
 
                 if (dragExceeded) {
-                    // Dragging panning is ONLY active if map is scaled larger than 1.0
-                    if (targetCameraScale > 1.0) {
+                    const scaledW = mapW * targetCameraScale;
+                    const scaledH = mapH * targetCameraScale;
+
+                    // Allow panning if dimensions exceed current viewport boundary
+                    if (scaledW > viewW || scaledH > viewH) {
                         targetCameraX = startTargetCameraX + dx;
                         targetCameraY = startTargetCameraY + dy;
                         clampBounds();
 
-                        // Calculate drag speed vectors for momentum decay
                         const now = performance.now();
                         const dt = now - lastPointerTime;
                         if (dt > 0) {
@@ -464,13 +680,12 @@
                         lastPointerY = p.clientY;
                         lastPointerTime = now;
                     } else {
-                        // Suppress pan velocity completely at base scale
                         vx = 0;
                         vy = 0;
                     }
                 }
             } else if (activePointers.length === 2) {
-                dragExceeded = true; // Pinch touches default drag threshold immediately
+                dragExceeded = true; 
                 const p1 = activePointers[0];
                 const p2 = activePointers[1];
                 const currentDist = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
@@ -493,7 +708,6 @@
             if (activePointers.length === 0) {
                 isPointerDown = false;
                 
-                // Handle level or menu activation ONLY if the pointer was not dragged
                 if (!dragExceeded) {
                     vx = 0;
                     vy = 0;
@@ -522,18 +736,15 @@
                         }, 100);
                     }
                 } else {
-                    // Dampen initial inertia speed for seamless friction slides
                     const maxSpeed = 1.5;
                     vx = Math.max(-maxSpeed, Math.min(maxSpeed, vx));
                     vy = Math.max(-maxSpeed, Math.min(maxSpeed, vy));
                 }
 
-                // Reset pressed references
                 pressedBadge = null;
                 pressedUIButton = null;
 
             } else if (activePointers.length === 1) {
-                // Focus target coordinates gracefully if user drops down to one finger
                 const p = activePointers[0];
                 startX = p.clientX;
                 startY = p.clientY;
@@ -543,7 +754,6 @@
                 lastPointerY = p.clientY;
                 lastPointerTime = performance.now();
 
-                // Prevent late clicks during mixed pinch/release cycles
                 pressedBadge = null;
                 pressedUIButton = null;
             }
@@ -564,7 +774,7 @@
             zoomToPoint(e.clientX, e.clientY, nextScale);
         }, { passive: false });
 
-        // Mobile/Tablet Double Tap toggle: 100% -> 180% -> 100%
+        // Mobile/Tablet Double Tap toggle: zoom relative to device profile
         let lastTapTime = 0;
         viewport.addEventListener('pointerdown', (e) => {
             if (e.target.closest('.ui-button')) return;
@@ -578,21 +788,27 @@
         });
 
         function handleDoubleTap(x, y) {
-            if (targetCameraScale > 1.2) {
-                zoomToPoint(x, y, 1.0);
+            const isMobile = window.innerWidth <= 768;
+            const baseScale = isMobile ? 1.25 : 1.0;
+            const zoomScale = isMobile ? 1.8 : 1.8;
+
+            if (targetCameraScale > baseScale + 0.1) {
+                zoomToPoint(x, y, baseScale);
             } else {
-                zoomToPoint(x, y, 1.8);
+                zoomToPoint(x, y, zoomScale);
             }
         }
 
         // --- ANIMATION INTERPOLATION RENDERING LOOP ---
         function renderLoop() {
-            // Apply inertial friction physics if contact is released (only zoomed in)
-            if (!isPointerDown && targetCameraScale > 1.0) {
+            const scaledW = mapW * targetCameraScale;
+            const scaledH = mapH * targetCameraScale;
+
+            if (!isPointerDown && (scaledW > viewW || scaledH > viewH)) {
                 if (Math.abs(vx) > 0.01 || Math.abs(vy) > 0.01) {
                     targetCameraX += vx * 16; 
                     targetCameraY += vy * 16;
-                    vx *= 0.88; // Deceleration damping coefficient
+                    vx *= 0.88; 
                     vy *= 0.88;
                     clampBounds();
                 } else {
@@ -601,7 +817,6 @@
                 }
             }
 
-            // Interpolate coordinates with beautiful smooth easing curves
             currentCameraScale = lerp(currentCameraScale, targetCameraScale, 0.15);
             currentCameraX = lerp(currentCameraX, targetCameraX, 0.15);
             currentCameraY = lerp(currentCameraY, targetCameraY, 0.15);
@@ -619,20 +834,17 @@
             const overlay = document.getElementById('interactiveOverlay');
             
             BADGES.forEach(badge => {
-                // Create badge container wrapper
                 const el = document.createElement('div');
                 el.className = 'mission-badge';
                 el.style.left = `${badge.x}%`;
                 el.style.top = `${badge.y}%`;
                 el.setAttribute('data-level', badge.id);
                 
-                // Add the transparent PNG image
                 const img = document.createElement('img');
                 img.src = badge.image;
                 img.alt = `Level ${badge.id}`;
                 img.className = 'badge-img';
                 
-                // Add the internal shine sweep container
                 const shine = document.createElement('div');
                 shine.className = 'shine-sweep';
                 
@@ -641,13 +853,67 @@
                 
                 overlay.appendChild(el);
             });
-
-            // Read the initial dimensions once constructed
-            updateMapDimensions();
         }
 
-        // Run badge construction on load
-        window.addEventListener('DOMContentLoaded', generateBadges);
+        // --- ASSETS PRELOADER ENGINE ---
+        function preloadAssets(assets, onProgress) {
+            let loadedCount = 0;
+            const total = assets.length;
+            
+            if (total === 0) return Promise.resolve();
+
+            return Promise.all(assets.map(src => {
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    img.src = src;
+                    img.onload = () => {
+                        loadedCount++;
+                        onProgress(loadedCount, total);
+                        resolve();
+                    };
+                    img.onerror = () => {
+                        // Resilient asset error recovery prevents layout blocks
+                        loadedCount++;
+                        onProgress(loadedCount, total);
+                        resolve();
+                    };
+                });
+            }));
+        }
+
+        // Handle completed assets state cleanly
+        function onLoadingFinished() {
+            const loadingScreen = document.getElementById('loadingScreen');
+            const gameViewport = document.getElementById('gameViewport');
+
+            // Generate map nodes on cached assets
+            generateBadges();
+
+            // Set cached map layout artwork
+            mapImage.src = 'map.png';
+
+            // Stabilize initial container dimensions
+            updateMapDimensions();
+
+            // Fade in the layout seamlessly
+            gameViewport.style.opacity = '1';
+            loadingScreen.classList.add('fade-out');
+        }
+
+        // Initialize Loading pipeline
+        window.addEventListener('DOMContentLoaded', () => {
+            const progressBarFill = document.getElementById('progressBarFill');
+            const loadingPercentage = document.getElementById('loadingPercentage');
+
+            preloadAssets(ASSETS, (loaded, total) => {
+                const percent = Math.round((loaded / total) * 100);
+                progressBarFill.style.width = `${percent}%`;
+                loadingPercentage.textContent = `${percent}%`;
+            }).then(() => {
+                // Symmetrical fadeout delay
+                setTimeout(onLoadingFinished, 500);
+            });
+        });
 
         // --- PWA SERVICE WORKER REGISTRATION ---
         if ('serviceWorker' in navigator) {
