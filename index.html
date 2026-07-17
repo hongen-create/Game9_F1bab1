@@ -15,6 +15,13 @@
     <meta name="apple-mobile-web-app-title" content="Game Map">
     <link rel="apple-touch-icon" href="icon-192.png">
 
+    <!-- Instant skip check to prevent any FOUC/Flickering of the cloud screen -->
+    <script>
+        if (localStorage.getItem("introPlayed") === "true") {
+            document.documentElement.classList.add('intro-played');
+        }
+    </script>
+
     <style>
         * {
             box-sizing: border-box;
@@ -173,6 +180,253 @@
             }
         }
 
+        /* --- REDESIGNED SEAMLESS PORTRAIT CLOUD INTRO OVERLAY --- */
+        .cloud-intro-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent; /* Seamless overlay reveals world map directly underneath */
+            z-index: 999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            pointer-events: auto; /* Keep button interactive */
+            transition: opacity 0.5s ease-out 1.6s, visibility 0.5s ease-out 1.6s, filter 0.3s ease-out;
+        }
+
+        /* Fast suppression of cloud screen if already completed once */
+        .intro-played .cloud-intro-screen {
+            display: none !important;
+        }
+
+        /* Click brightening transition flash */
+        .cloud-intro-screen.separating {
+            filter: brightness(1.8) saturate(1.1);
+            pointer-events: none;
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        /* Soft sunlight glow element behind clouds */
+        .sunlight-glow {
+            position: absolute;
+            top: -20%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120%;
+            height: 80%;
+            background: radial-gradient(circle, rgba(255, 235, 150, 0.28) 0%, rgba(255, 215, 0, 0.08) 55%, transparent 80%);
+            pointer-events: none;
+            z-index: 0;
+            mix-blend-mode: screen;
+            animation: sunlightBreathe 6s infinite alternate ease-in-out;
+        }
+
+        @keyframes sunlightBreathe {
+            0% { opacity: 0.75; }
+            100% { opacity: 1; transform: translateX(-50%) scale(1.05); }
+        }
+
+        /* Three independent, seamless transparent PNG cloud layers */
+        .cloud-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-repeat: repeat;
+            pointer-events: none;
+            will-change: background-position, transform, opacity;
+        }
+
+        /* Layer 1: Large soft background clouds (Very slow drift) */
+        .cloud-layer-1 {
+            background-image: url('https://pngimg.com/uploads/cloud/cloud_PNG2.png');
+            background-size: 140% auto;
+            opacity: 0.9;
+            z-index: 1;
+            animation: driftSlow 130s linear infinite;
+            transition: transform 1.8s cubic-bezier(0.25, 1, 0.5, 1) 0.2s, 
+                        opacity 1.6s cubic-bezier(0.25, 1, 0.5, 1) 0.2s;
+        }
+
+        /* Layer 2: Medium foreground clouds (Medium drift) */
+        .cloud-layer-2 {
+            background-image: url('https://pngimg.com/uploads/cloud/cloud_PNG18.png');
+            background-size: 100% auto;
+            opacity: 0.85;
+            z-index: 2;
+            animation: driftMedium 90s linear infinite;
+            transition: transform 1.6s cubic-bezier(0.25, 1, 0.5, 1) 0.2s, 
+                        opacity 1.4s cubic-bezier(0.25, 1, 0.5, 1) 0.2s;
+        }
+
+        /* Layer 3: Small thin clouds (Slightly faster drift) */
+        .cloud-layer-3 {
+            background-image: url('https://pngimg.com/uploads/cloud/cloud_PNG3.png');
+            background-size: 65% auto;
+            opacity: 0.75;
+            z-index: 3;
+            animation: driftFast 50s linear infinite;
+            transition: transform 1.3s cubic-bezier(0.25, 1, 0.5, 1) 0.2s, 
+                        opacity 1.1s cubic-bezier(0.25, 1, 0.5, 1) 0.2s;
+        }
+
+        @keyframes driftSlow {
+            0% { background-position: 0px 0px; }
+            100% { background-position: 2000px 0px; }
+        }
+
+        @keyframes driftMedium {
+            0% { background-position: 0px 0px; }
+            100% { background-position: -2000px 150px; }
+        }
+
+        @keyframes driftFast {
+            0% { background-position: 0px 0px; }
+            100% { background-position: 1000px -100px; }
+        }
+
+        /* Redesigned 3D parting cloud separation directions */
+        .cloud-intro-screen.separating .cloud-layer-1 {
+            transform: translate3d(-100%, 0, 0) scale(1.1);
+            opacity: 0;
+        }
+
+        .cloud-intro-screen.separating .cloud-layer-2 {
+            transform: translate3d(100%, 0, 0) scale(1.1);
+            opacity: 0;
+        }
+
+        .cloud-intro-screen.separating .cloud-layer-3 {
+            transform: translate3d(0, -100%, 0) scale(1.1);
+            opacity: 0;
+        }
+
+        /* Intro Screen UI container */
+        .intro-content {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            width: 100%;
+            transition: transform 1.2s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.9s ease-out;
+        }
+
+        .cloud-intro-screen.separating .intro-content {
+            transform: scale(1.12);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Ornate start button wrapper for cloud wisps */
+        .button-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        /* Tiny cloud wisps drifting across the start button */
+        .wisp {
+            position: absolute;
+            width: 80px;
+            height: 40px;
+            background-image: url('https://pngimg.com/uploads/cloud/cloud_PNG13.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            pointer-events: none;
+            opacity: 0.55;
+            mix-blend-mode: screen;
+            z-index: 13;
+        }
+
+        .wisp-1 {
+            top: -12px;
+            left: -35px;
+            animation: wispDrift1 14s infinite linear;
+        }
+
+        .wisp-2 {
+            bottom: -15px;
+            right: -35px;
+            animation: wispDrift2 18s infinite linear;
+        }
+
+        @keyframes wispDrift1 {
+            0% { transform: translate3d(0, 0, 0) scale(0.75); opacity: 0; }
+            10% { opacity: 0.55; }
+            90% { opacity: 0.55; }
+            100% { transform: translate3d(210px, 4px, 0) scale(0.95); opacity: 0; }
+        }
+
+        @keyframes wispDrift2 {
+            0% { transform: translate3d(0, 0, 0) scale(0.95); opacity: 0; }
+            15% { opacity: 0.45; }
+            85% { opacity: 0.45; }
+            100% { transform: translate3d(-210px, -4px, 0) scale(0.75); opacity: 0; }
+        }
+
+        /* Elegant Ornate Medieval Start Button */
+        .intro-start-btn {
+            position: relative;
+            padding: 16px 54px;
+            background: linear-gradient(135deg, #8a640f 0%, #b8860b 25%, #ffd700 50%, #b8860b 75%, #8a640f 100%);
+            background-size: 200% 100%;
+            border: 2px solid #ffd700;
+            border-radius: 4px; /* Medieval boxy framing */
+            color: #0b0d10;
+            font-family: Georgia, serif;
+            font-size: 1.15rem;
+            font-weight: bold;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            cursor: pointer;
+            outline: none;
+            box-shadow: 0 0 20px rgba(184, 134, 11, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.6);
+            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
+            transition: border-color 0.3s, color 0.3s, background-position 0.4s;
+            z-index: 12;
+            
+            /* Ornamental corner cuts */
+            clip-path: polygon(
+                0% 4px, 4px 0%, calc(100% - 4px) 0%, 100% 4px,
+                100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0% calc(100% - 4px)
+            );
+            animation: buttonFloat 3s infinite alternate ease-in-out;
+        }
+
+        @keyframes buttonFloat {
+            0% {
+                transform: translateY(0);
+                box-shadow: 0 6px 15px rgba(184, 134, 11, 0.3), inset 0 0 8px rgba(255, 255, 255, 0.4);
+            }
+            100% {
+                transform: translateY(-6px);
+                box-shadow: 0 12px 25px rgba(184, 134, 11, 0.6), inset 0 0 12px rgba(255, 255, 255, 0.7);
+            }
+        }
+
+        @media (hover: hover) {
+            .intro-start-btn:hover {
+                background-position: 100% 0;
+                border-color: #ffffff;
+                box-shadow: 0 15px 30px rgba(255, 215, 0, 0.7), inset 0 0 15px rgba(255, 255, 255, 0.8);
+                color: #000000;
+            }
+        }
+
+        .intro-start-btn:active {
+            transform: translateY(2px) scale(0.97) !important;
+            box-shadow: 0 4px 10px rgba(184, 134, 11, 0.5) !important;
+            transition: transform 0.05s ease;
+        }
+
+        /* --- GAME VIEWPORT ADJUSTMENTS --- */
+
         /* Scalable Main Game Wrapper */
         .game-wrapper {
             position: relative;
@@ -184,8 +438,16 @@
             align-items: center;
             overflow: hidden;
             touch-action: none; /* Disables standard browser zooming/panning */
-            opacity: 0;
-            transition: opacity 0.5s ease;
+            pointer-events: none; /* Shield inputs until clouds part fully */
+        }
+
+        /* Auto-interactive state if the intro has already been experienced */
+        .intro-played .game-wrapper {
+            pointer-events: auto !important;
+        }
+
+        .game-wrapper.interactive {
+            pointer-events: auto; /* Grant controls after cloud intro completes */
         }
 
         /* Container with standard shadows on desktop, customized on mobile */
@@ -227,7 +489,7 @@
             overflow: visible;
         }
 
-        /* Mission Badge Layer */
+        /* Universal Mission Badge Layer */
         .mission-badge {
             position: absolute;
             width: 9.3%; 
@@ -247,7 +509,194 @@
             will-change: transform;
             
             transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1), 
-                        filter 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+                        filter 0.25s cubic-bezier(0.25, 1, 0.5, 1),
+                        box-shadow 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        /* --- STATE SYSTEM SPECIFIC STYLING --- */
+
+        /* State 1: Available Stage styling (glowing guidance) */
+        .mission-badge[data-state="available"] {
+            animation: availablePulse 2.2s infinite alternate ease-in-out;
+        }
+
+        @keyframes availablePulse {
+            0% {
+                filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.45));
+            }
+            100% {
+                filter: drop-shadow(0 0 14px rgba(255, 215, 0, 0.9)) brightness(1.04);
+            }
+        }
+
+        /* State 2: Locked Stage styling (retains color with slight dimming) */
+        .mission-badge[data-state="locked"] {
+            filter: brightness(0.8);
+            cursor: not-allowed;
+        }
+
+        /* Gold Lock Overlay Container */
+        .lock-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        /* --- STATE 3: PREMIUM AAA-STYLE COMPLETED STAGE EFFECTS --- */
+
+        /* Layer 1: Soft breathing inner golden edge glow */
+        .inner-glow-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            pointer-events: none;
+            mix-blend-mode: screen;
+            animation: innerGlowBreathe var(--glow-speed, 3s) infinite ease-in-out;
+            animation-delay: var(--glow-delay, 0s);
+            z-index: 1;
+        }
+
+        @keyframes innerGlowBreathe {
+            0% {
+                opacity: 0.7;
+                box-shadow: 0 0 10px rgba(255, 180, 0, 0.35), inset 0 0 8px rgba(255, 180, 0, 0.15);
+            }
+            100% {
+                opacity: 0.95;
+                box-shadow: 0 0 18px rgba(255, 215, 0, 0.6), inset 0 0 14px rgba(255, 215, 0, 0.35);
+            }
+        }
+
+        /* Layer 2: Moving golden energy thin halo */
+        .rotating-halo-layer {
+            position: absolute;
+            top: -6%;
+            left: -6%;
+            width: 112%;
+            height: 112%;
+            border-radius: 50%;
+            border: 1.5px solid transparent;
+            border-top-color: rgba(255, 215, 0, 0.85);
+            border-bottom-color: rgba(255, 180, 0, 0.85);
+            border-left-color: rgba(255, 215, 0, 0.25);
+            border-right-color: rgba(255, 140, 0, 0.25);
+            pointer-events: none;
+            mix-blend-mode: screen;
+            filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.5));
+            animation: haloRotate var(--halo-speed, 10s) linear infinite;
+            animation-delay: var(--halo-delay, 0s);
+            z-index: 1;
+        }
+
+        @keyframes haloRotate {
+            0% {
+                transform: rotate(var(--halo-start-angle, 0deg));
+            }
+            100% {
+                transform: rotate(calc(var(--halo-start-angle, 0deg) + 360deg));
+            }
+        }
+
+        /* Layer 3: Sparkling organic stars */
+        .sparkles-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        /* 4-point golden energy stars (Uses CSS polygons for absolute performance) */
+        .sparkle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 8px;
+            height: 8px;
+            background: radial-gradient(circle, #fff 15%, rgba(255, 215, 0, 0.95) 55%, transparent 100%);
+            clip-path: polygon(50% 0%, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0% 50%, 39% 39%);
+            pointer-events: none;
+            opacity: 0;
+            animation: sparklePulse var(--sp-duration, 3.2s) infinite ease-in-out;
+            animation-delay: var(--sp-delay, 0s);
+        }
+
+        @keyframes sparklePulse {
+            0%, 100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) rotate(var(--sp-angle, 0deg)) translate(53%) scale(0);
+            }
+            40%, 60% {
+                opacity: 0.9;
+                transform: translate(-50%, -50%) rotate(var(--sp-angle, 0deg)) translate(53%) scale(var(--sp-scale, 1));
+            }
+        }
+
+        /* Layer 4: Click radial burst container */
+        .click-burst-layer {
+            position: absolute;
+            top: -20%;
+            left: -20%;
+            width: 140%;
+            height: 140%;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 215, 0, 0.8) 0%, rgba(255, 140, 0, 0.4) 40%, transparent 70%);
+            pointer-events: none;
+            opacity: 0;
+            z-index: 3;
+            transform: scale(0.5);
+        }
+
+        /* Active click sequence transitions */
+        .mission-badge.burst-active .click-burst-layer {
+            animation: clickFlash 0.4s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+        }
+
+        @keyframes clickFlash {
+            0% {
+                opacity: 0;
+                transform: scale(0.4);
+            }
+            20% {
+                opacity: 1;
+                transform: scale(1.1);
+                filter: brightness(1.5);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(1.4);
+            }
+        }
+
+        /* Heightened Halo burst acceleration during clicked state */
+        .mission-badge.burst-active .rotating-halo-layer {
+            animation: haloBurst 0.4s ease-out forwards !important;
+        }
+
+        @keyframes haloBurst {
+            0% {
+                transform: rotate(0deg) scale(1);
+                filter: drop-shadow(0 0 15px rgba(255, 215, 0, 1)) brightness(2.2);
+                border-width: 3px;
+            }
+            100% {
+                transform: rotate(180deg) scale(1.25);
+                filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0)) brightness(1);
+                border-width: 1.5px;
+                opacity: 0.5;
+            }
         }
 
         /* Image inside badge */
@@ -259,11 +708,30 @@
             pointer-events: none;
         }
 
-        /* Hover Behavior (Desktop Only) */
+        /* Hover Behavior (Desktop Only - Scoped to avoid Locked badges) */
         @media (hover: hover) {
-            .mission-badge:hover {
+            .mission-badge[data-state="available"]:hover,
+            .mission-badge[data-state="completed"]:hover {
+                animation: none; /* Disable default pulsing during hover zoom */
                 transform: translate3d(-50%, calc(-50% - 2px), 0) scale(1.05);
                 filter: drop-shadow(0 4px 12px rgba(255, 215, 0, 0.6)) brightness(1.08);
+            }
+
+            /* Premium, subtle completed-only hover feedback overlays */
+            .mission-badge[data-state="completed"]:hover .inner-glow-layer {
+                box-shadow: 0 0 24px rgba(255, 215, 0, 0.85), inset 0 0 18px rgba(255, 215, 0, 0.4);
+                filter: brightness(1.15);
+            }
+
+            .mission-badge[data-state="completed"]:hover .rotating-halo-layer {
+                border-width: 2px;
+                filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.85)) brightness(1.2);
+                animation-duration: calc(var(--halo-speed, 10s) * 0.6); /* Accelerates rotation on hover */
+            }
+
+            .mission-badge[data-state="completed"]:hover .sparkle {
+                filter: brightness(1.25);
+                animation-duration: calc(var(--sp-duration, 3.2s) * 0.55); /* Heightened sparkle frequency */
             }
         }
 
@@ -360,7 +828,27 @@
         </div>
     </div>
 
-    <!-- Main Game Viewport -->
+    <!-- Cinematic Cloud Intro Overlay Screen -->
+    <div class="cloud-intro-screen" id="cloudIntroScreen">
+        <!-- Soft top sunlight glow behind clouds -->
+        <div class="sunlight-glow"></div>
+
+        <!-- Three independent seamless transparent PNG cloud layers -->
+        <div class="cloud-layer cloud-layer-1"></div>
+        <div class="cloud-layer cloud-layer-2"></div>
+        <div class="cloud-layer cloud-layer-3"></div>
+        
+        <!-- Floating Medieval gold button container -->
+        <div class="intro-content">
+            <div class="button-wrapper">
+                <button class="intro-start-btn" id="btnEnterMap">进入地图</button>
+                <div class="wisp wisp-1"></div>
+                <div class="wisp wisp-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Game Viewport (Uncovered directly by clouds) -->
     <div class="game-wrapper" id="gameViewport">
         <div class="map-container" id="mapLayer">
             <!-- Background Map Image (Source resolved programmatically) -->
@@ -369,13 +857,120 @@
             <!-- Dynamic Interactive Overlays Layer -->
             <div class="interactive-overlay" id="interactiveOverlay">
                 <!-- UI Buttons (Invisible pointer hotspots) -->
-                <div class="ui-button" id="btn-menu" style="left: 7.3%; top: 4.8%; width: 9%; height: 9%; border-radius: 50%;"></div>
-                <div class="ui-button" id="btn-achievement" style="left: 92.7%; top: 4.8%; width: 9%; height: 9%; border-radius: 50%;"></div>
+                <!-- Populated dynamically to ensure structural integrity -->
             </div>
         </div>
     </div>
 
     <script>
+        // --- REUSABLE PROGRESSION SYSTEM ENGINE ---
+        const GameProgression = {
+            STORAGE_KEY: 'game_level_progression_v1',
+
+            // Read raw localStorage data, falling back to a structured default state
+            getProgress() {
+                try {
+                    const saved = localStorage.getItem(this.STORAGE_KEY);
+                    if (saved) {
+                        return JSON.parse(saved);
+                    }
+                } catch (e) {
+                    console.error("Local storage read error", e);
+                }
+                return this.getInitialState();
+            },
+
+            // Extensible structure supporting progression, scores, stats, stars, achievements, etc.
+            getInitialState() {
+                return {
+                    levels: {
+                        1: { unlocked: true, completed: false, stars: 0, score: 0 }
+                    },
+                    achievements: [],
+                    stats: {
+                        totalScore: 0,
+                        levelsCompleted: 0
+                    }
+                };
+            },
+
+            // Safe localStorage storage write
+            save(progress) {
+                try {
+                    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(progress));
+                } catch (e) {
+                    console.error("Local storage save error", e);
+                }
+            },
+
+            // Returns status of current level unlock state
+            isUnlocked(levelId) {
+                const id = parseInt(levelId);
+                if (id === 1) return true; // Level 1 remains unlocked initially
+                
+                const progress = this.getProgress();
+                return !!(progress.levels[id] && progress.levels[id].unlocked);
+            },
+
+            // Returns status of level completion state
+            isCompleted(levelId) {
+                const id = parseInt(levelId);
+                const progress = this.getProgress();
+                return !!(progress.levels[id] && progress.levels[id].completed);
+            },
+
+            // Modular trigger to complete a level. Automatically unlocks the subsequent level.
+            // Accepts secondary payload for scores, stars, and future expansion elements.
+            completeLevel(levelId, data = {}) {
+                const id = parseInt(levelId);
+                const progress = this.getProgress();
+
+                if (!progress.levels[id]) {
+                    progress.levels[id] = {};
+                }
+                progress.levels[id].completed = true;
+                progress.levels[id].unlocked = true;
+
+                // Merge extension data (optional)
+                if (data.stars !== undefined) progress.levels[id].stars = data.stars;
+                if (data.score !== undefined) progress.levels[id].score = data.score;
+
+                // Unlock next level (Up to index boundary 9)
+                const nextId = id + 1;
+                if (nextId <= 9) {
+                    if (!progress.levels[nextId]) {
+                        progress.levels[nextId] = {};
+                    }
+                    progress.levels[nextId].unlocked = true;
+                }
+
+                // Recalculate statistics dynamically
+                let totalScore = 0;
+                let completedCount = 0;
+                Object.keys(progress.levels).forEach(k => {
+                    const lvl = progress.levels[k];
+                    if (lvl.completed) completedCount++;
+                    if (lvl.score) totalScore += lvl.score;
+                });
+                progress.stats.totalScore = totalScore;
+                progress.stats.levelsCompleted = completedCount;
+
+                this.save(progress);
+                return progress;
+            },
+
+            // Resets progress tracking back to state initialization
+            resetProgression() {
+                const init = this.getInitialState();
+                this.save(init);
+                localStorage.removeItem("introPlayed"); // Clears the played intro state to allow re-experiencing the cinematic opening
+                return init;
+            }
+        };
+
+        // Exposed globally to allow sub-levels/iframes to trigger unlocks on level completion
+        window.GameProgression = GameProgression;
+
         // Clean configuration array for independent PNG badges
         const BADGES = [
             { id: 1, image: 'badge1.png', x: 50.0, y: 86.6, level: 'level1.html' },
@@ -400,34 +995,90 @@
             'badge6.png',
             'badge7.png',
             'badge8.png',
-            'badge9.png'
+            'badge9.png',
+            'https://pngimg.com/uploads/cloud/cloud_PNG2.png',
+            'https://pngimg.com/uploads/cloud/cloud_PNG18.png',
+            'https://pngimg.com/uploads/cloud/cloud_PNG3.png',
+            'https://pngimg.com/uploads/cloud/cloud_PNG13.png'
         ];
 
-        // Web Audio Synthesizer (magical ding effect)
+        // --- PRELOADED HTML5 AUDIO STATE ENGINE ---
+        const bgMusic = new Audio('bg_music.mp3');
+        bgMusic.loop = true;
+        bgMusic.preload = 'auto';
+        bgMusic.volume = 0; // Starts at 0 for initial 1s fade-in
+
+        const clickSfx = new Audio('click1.mp3');
+        clickSfx.preload = 'auto';
+        clickSfx.volume = 0.65; // Balanced volume between 60-70% to pierce over BGM
+
+        // Play and restart click sound object cleanly without overlap
         function playClickSound() {
             try {
-                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                if (!AudioContext) return;
-                
-                const audioCtx = new AudioContext();
-                const osc = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
-                
-                osc.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-                
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(440, audioCtx.currentTime); 
-                osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1); 
-                
-                gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
-                
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.4);
-            } catch (e) {
-                console.warn("AudioContext blocked or unsupported.", e);
+                clickSfx.pause();
+                clickSfx.currentTime = 0;
+                clickSfx.play().catch(e => console.warn("SFX play postponed or blocked:", e));
+            } catch (err) {
+                console.warn("Audio click playback failed:", err);
             }
+        }
+
+        // Smooth volume fade-in over 1 second (volume limits capped at 35%)
+        function fadeInBGM(duration = 1000) {
+            bgMusic.volume = 0;
+            bgMusic.play().then(() => {
+                const targetVolume = 0.35; // Volume optimized between 30-40%
+                const startTime = performance.now();
+                function step(now) {
+                    const elapsed = now - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    bgMusic.volume = progress * targetVolume;
+                    if (progress < 1) {
+                        requestAnimationFrame(step);
+                    }
+                }
+                requestAnimationFrame(step);
+            }).catch(err => {
+                console.warn("Autoplay blocked. Registering interaction fallbacks.", err);
+                setupAutoplayFallback();
+            });
+        }
+
+        // Smooth volume fade-out over 300-500ms before redirection
+        function fadeOutBGM(duration = 400) {
+            return new Promise((resolve) => {
+                const startVolume = bgMusic.volume;
+                const startTime = performance.now();
+                function step(now) {
+                    const elapsed = now - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    bgMusic.volume = startVolume * (1 - progress);
+                    if (progress < 1) {
+                        requestAnimationFrame(step);
+                    } else {
+                        bgMusic.pause();
+                        resolve();
+                    }
+                }
+                requestAnimationFrame(step);
+            });
+        }
+
+        // Autoplay Fallback trigger on first touch interaction
+        let hasInteractedForAudio = false;
+        function setupAutoplayFallback() {
+            const startOnInteraction = () => {
+                if (hasInteractedForAudio) return;
+                hasInteractedForAudio = true;
+                fadeInBGM();
+                // Clean up registration listeners
+                window.removeEventListener('click', startOnInteraction);
+                window.removeEventListener('touchend', startOnInteraction);
+                window.removeEventListener('pointerdown', startOnInteraction);
+            };
+            window.addEventListener('click', startOnInteraction, { once: true });
+            window.addEventListener('touchend', startOnInteraction, { once: true });
+            window.addEventListener('pointerdown', startOnInteraction, { once: true });
         }
 
         // --- CAMERA STATE ENGINE ---
@@ -618,6 +1269,11 @@
             pressedBadge = e.target.closest('.mission-badge');
             pressedUIButton = e.target.closest('.ui-button');
 
+            // If badge is locked, disable pressing/interaction
+            if (pressedBadge && pressedBadge.getAttribute('data-state') === 'locked') {
+                pressedBadge = null; // Ignore interactions on locked state, allowing only map drags
+            }
+
             activePointers.push(e);
             isPointerDown = true;
             vx = 0; 
@@ -719,15 +1375,27 @@
 
                     if (pressedBadge) {
                         const badgeId = pressedBadge.getAttribute('data-level');
-                        const badgeData = BADGES.find(b => b.id == badgeId);
+                        const state = pressedBadge.getAttribute('data-state');
 
-                        if (badgeData && !pressedBadge.classList.contains('clicked')) {
-                            pressedBadge.classList.add('clicked');
-                            playClickSound();
+                        // Double check that node is not locked
+                        if (state !== 'locked') {
+                            const badgeData = BADGES.find(b => b.id == badgeId);
 
-                            setTimeout(() => {
-                                window.location.href = badgeData.level;
-                            }, 400);
+                            if (badgeData && !pressedBadge.classList.contains('clicked')) {
+                                pressedBadge.classList.add('clicked');
+                                
+                                // Trigger the burst animation if it is a completed level
+                                if (state === 'completed') {
+                                    pressedBadge.classList.add('burst-active');
+                                }
+
+                                playClickSound();
+                                fadeOutBGM(400); // Dynamic seamless fadeout over 400ms during delayed redirection
+
+                                setTimeout(() => {
+                                    window.location.href = badgeData.level;
+                                }, 400);
+                            }
                         }
                     } else if (pressedUIButton) {
                         const buttonId = pressedUIButton.id;
@@ -834,17 +1502,165 @@
         // Run animation loop
         requestAnimationFrame(renderLoop);
 
+        // --- ARCHITECTURAL BADGE RENDERING SYSTEM ---
+
+        // Maps level ID directly to state string values
+        function getBadgeState(levelId) {
+            const id = parseInt(levelId);
+            
+            if (GameProgression.isCompleted(id)) {
+                return 'completed';
+            }
+            if (id === 1 || GameProgression.isUnlocked(id)) {
+                return 'available';
+            }
+            return 'locked';
+        }
+
+        // Reactively adjusts UI alignment of all badge states from localStorage
+        function updateBadgeStates() {
+            const badges = document.querySelectorAll('.mission-badge');
+            badges.forEach(el => {
+                const badgeId = el.getAttribute('data-level');
+                const state = getBadgeState(badgeId);
+                
+                // Update dynamic attribute structure
+                el.setAttribute('data-state', state);
+
+                // Setup lock overlays dynamically to maintain identical DOM size and position
+                let lockOverlay = el.querySelector('.lock-overlay');
+                if (state === 'locked') {
+                    if (!lockOverlay) {
+                        lockOverlay = document.createElement('div');
+                        lockOverlay.className = 'lock-overlay';
+                        lockOverlay.innerHTML = `
+                            <svg viewBox="0 0 24 24" style="width: 38%; height: 38%; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.85));">
+                                <path fill="#ffd700" d="M12,17A2,2 0 0,0 14,15C14,13.89 13.1,13 12,13A2,2 0 0,0 10,15A2,2 0 0,0 12,17M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10C4,8.89 4.9,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z" />
+                            </svg>
+                        `;
+                        el.appendChild(lockOverlay);
+                    }
+                } else {
+                    if (lockOverlay) {
+                        lockOverlay.remove();
+                    }
+                }
+
+                // --- PREMIUM ADAPTIVE COMPLETED VISUAL LAYERS ---
+                if (state === 'completed') {
+                    // Generate unique desynchronized animation parameters once on initialization
+                    if (!el.style.getPropertyValue('--halo-delay')) {
+                        const haloDelay = -(Math.random() * 10).toFixed(2) + 's';
+                        const haloSpeed = (8 + Math.random() * 4).toFixed(2) + 's';
+                        const haloStartAngle = Math.floor(Math.random() * 360) + 'deg';
+                        const glowDelay = -(Math.random() * 3).toFixed(2) + 's';
+                        const glowSpeed = (2.2 + Math.random() * 1.8).toFixed(2) + 's';
+
+                        el.style.setProperty('--halo-delay', haloDelay);
+                        el.style.setProperty('--halo-speed', haloSpeed);
+                        el.style.setProperty('--halo-start-angle', haloStartAngle);
+                        el.style.setProperty('--glow-delay', glowDelay);
+                        el.style.setProperty('--glow-speed', glowSpeed);
+                    }
+
+                    // Layer 1: Inner Glow Edge
+                    let innerGlow = el.querySelector('.inner-glow-layer');
+                    if (!innerGlow) {
+                        innerGlow = document.createElement('div');
+                        innerGlow.className = 'inner-glow-layer';
+                        el.appendChild(innerGlow);
+                    }
+
+                    // Layer 2: Rotating Golden energy Halo
+                    let halo = el.querySelector('.rotating-halo-layer');
+                    if (!halo) {
+                        halo = document.createElement('div');
+                        halo.className = 'rotating-halo-layer';
+                        el.appendChild(halo);
+                    }
+
+                    // Layer 3: Sparkling organic stars
+                    let sparklesContainer = el.querySelector('.sparkles-container');
+                    if (!sparklesContainer) {
+                        sparklesContainer = document.createElement('div');
+                        sparklesContainer.className = 'sparkles-container';
+                        
+                        // Populate with 3 independent out-of-phase stars
+                        for (let i = 1; i <= 3; i++) {
+                            const sparkle = document.createElement('div');
+                            sparkle.className = `sparkle sp-${i}`;
+                            
+                            const angle = Math.floor(Math.random() * 360) + 'deg';
+                            const delay = -(Math.random() * 4).toFixed(2) + 's';
+                            const duration = (2.5 + Math.random() * 2).toFixed(2) + 's';
+                            const scale = (0.6 + Math.random() * 0.6).toFixed(2);
+                            
+                            sparkle.style.setProperty('--sp-angle', angle);
+                            sparkle.style.setProperty('--sp-delay', delay);
+                            sparkle.style.setProperty('--sp-duration', duration);
+                            sparkle.style.setProperty('--sp-scale', scale);
+                            
+                            sparklesContainer.appendChild(sparkle);
+                        }
+                        el.appendChild(sparklesContainer);
+                    }
+
+                    // Layer 4: Click radial burst container
+                    let clickBurst = el.querySelector('.click-burst-layer');
+                    if (!clickBurst) {
+                        clickBurst = document.createElement('div');
+                        clickBurst.className = 'click-burst-layer';
+                        el.appendChild(clickBurst);
+                    }
+                } else {
+                    // Symmetrical cleanup: avoid memory leaks / leftover styling properties on reset
+                    const innerGlow = el.querySelector('.inner-glow-layer');
+                    if (innerGlow) innerGlow.remove();
+
+                    const halo = el.querySelector('.rotating-halo-layer');
+                    if (halo) halo.remove();
+
+                    const sparkles = el.querySelector('.sparkles-container');
+                    if (sparkles) sparkles.remove();
+
+                    const clickBurst = el.querySelector('.click-burst-layer');
+                    if (clickBurst) clickBurst.remove();
+
+                    el.style.removeProperty('--halo-delay');
+                    el.style.removeProperty('--halo-speed');
+                    el.style.removeProperty('--halo-start-angle');
+                    el.style.removeProperty('--glow-delay');
+                    el.style.removeProperty('--glow-speed');
+                }
+            });
+        }
+
         // --- BADGE GENERATION PIPELINE ---
         function generateBadges() {
             const overlay = document.getElementById('interactiveOverlay');
+            overlay.innerHTML = ''; // Clear prior generation references
+
+            // Structure menu hotspots
+            const btnMenu = document.createElement('div');
+            btnMenu.className = 'ui-button';
+            btnMenu.id = 'btn-menu';
+            btnMenu.style.cssText = 'left: 7.3%; top: 4.8%; width: 9%; height: 9%; border-radius: 50%;';
+            overlay.appendChild(btnMenu);
+
+            const btnAch = document.createElement('div');
+            btnAch.className = 'ui-button';
+            btnAch.id = 'btn-achievement';
+            btnAch.style.cssText = 'left: 92.7%; top: 4.8%; width: 9%; height: 9%; border-radius: 50%;';
+            overlay.appendChild(btnAch);
             
+            // Build permanent badges (always visible, identical sizes and positions)
             BADGES.forEach(badge => {
                 const el = document.createElement('div');
                 el.className = 'mission-badge';
                 el.style.left = `${badge.x}%`;
                 el.style.top = `${badge.y}%`;
                 el.setAttribute('data-level', badge.id);
-                
+
                 const img = document.createElement('img');
                 img.src = badge.image;
                 img.alt = `Level ${badge.id}`;
@@ -858,6 +1674,9 @@
                 
                 overlay.appendChild(el);
             });
+
+            // Run initial alignment loop
+            updateBadgeStates();
         }
 
         // --- ASSETS PRELOADER ENGINE ---
@@ -900,21 +1719,102 @@
             // Stabilize initial container dimensions
             updateMapDimensions();
 
-            // Fade in the layout seamlessly
-            gameViewport.style.opacity = '1';
-            loadingScreen.classList.add('fade-out');
+            // Check if cinematic intro was already completed
+            const isIntroPlayed = localStorage.getItem("introPlayed") === "true";
+
+            if (isIntroPlayed) {
+                // Instantly remove introduction components to preserve performance
+                const cloudIntroScreen = document.getElementById('cloudIntroScreen');
+                if (cloudIntroScreen) cloudIntroScreen.remove();
+
+                // Reveal normal map immediately
+                gameViewport.classList.add('interactive');
+                loadingScreen.classList.add('fade-out');
+
+                // Autoplay background music with smooth fade-in (will handle policy overrides gracefully)
+                fadeInBGM();
+            } else {
+                // First Visit layout sequence:
+                // Randomize the start positions of all cloud layers on load
+                const layers = document.querySelectorAll('.cloud-layer');
+                layers.forEach(layer => {
+                    const rx = Math.floor(Math.random() * 1200);
+                    const ry = Math.floor(Math.random() * 800);
+                    layer.style.backgroundPosition = `${rx}px ${ry}px`;
+                });
+
+                // Fade out the loading screen to reveal the Cloud overlay underneath
+                loadingScreen.classList.add('fade-out');
+
+                // Bind Cinematic Cloud "进入地图" Button Interaction
+                const btnEnterMap = document.getElementById('btnEnterMap');
+                const cloudIntroScreen = document.getElementById('cloudIntroScreen');
+
+                btnEnterMap.addEventListener('click', () => {
+                    // Lock intro state immediately to bypass on all future sessions
+                    localStorage.setItem("introPlayed", "true");
+
+                    // Play soft magical transition sound immediately
+                    playClickSound();
+
+                    // Start loop background music playback and 1s fade-in smoothly
+                    fadeInBGM();
+
+                    // Trigger cloud partition separation and parallel map scaling reveal
+                    cloudIntroScreen.classList.add('separating');
+
+                    // Cleanly remove overlay from DOM and grant interactive map control after animation finishes
+                    setTimeout(() => {
+                        cloudIntroScreen.remove();
+                        gameViewport.classList.add('interactive'); // Grants pointer zoom/drag interaction
+                    }, 1800);
+                });
+            }
+
+            console.log("GameProgression Engine loaded.");
+            console.log("To complete current levels and test progressions, run: GameProgression.completeLevel(1)");
+            console.log("To reset the game completely, run: GameProgression.resetProgression()");
         }
+
+        // Dynamic State Refresher on history page navigation / BF-Cache focus events
+        window.addEventListener('pageshow', (e) => {
+            updateBadgeStates();
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                updateBadgeStates();
+            }
+        });
 
         // Initialize Loading pipeline
         window.addEventListener('DOMContentLoaded', () => {
             const progressBarFill = document.getElementById('progressBarFill');
             const loadingPercentage = document.getElementById('loadingPercentage');
 
-            preloadAssets(ASSETS, (loaded, total) => {
-                const percent = Math.round((loaded / total) * 100);
-                progressBarFill.style.width = `${percent}%`;
-                loadingPercentage.textContent = `${percent}%`;
-            }).then(() => {
+            // Low-latency concurrent HTML5 audio preloading
+            const audioPreloadPromises = [
+                new Promise(res => {
+                    bgMusic.addEventListener('canplaythrough', res, { once: true });
+                    bgMusic.addEventListener('error', res, { once: true });
+                    setTimeout(res, 2000); // 2s maximum cutoff safety timeout
+                }),
+                new Promise(res => {
+                    clickSfx.addEventListener('canplaythrough', res, { once: true });
+                    clickSfx.addEventListener('error', res, { once: true });
+                    setTimeout(res, 2000); // 2s maximum cutoff safety timeout
+                })
+            ];
+
+            // Core preloading engine combining images and audio
+            Promise.all([
+                preloadAssets(ASSETS, (loaded, total) => {
+                    const percent = Math.round((loaded / total) * 100);
+                    progressBarFill.style.width = `${percent}%`;
+                    loadingPercentage.textContent = `${percent}%`;
+                }),
+                ...audioPreloadPromises
+            ]).then(() => {
                 // Symmetrical fadeout delay
                 setTimeout(onLoadingFinished, 500);
             });
