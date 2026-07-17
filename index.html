@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Game9 FORM1</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        body {
+            background-color: #0b0d10;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        /* Scalable Main Game Wrapper (Camera Viewport Mask) */
+        .game-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            touch-action: none; /* Disables standard browser zooming/panning */
+        }
+
+        /* Container scales and preserves aspect ratio exactly with the image */
+        .map-container {
+            position: relative;
+            display: inline-block;
+            max-width: 100%;
+            max-height: 100%;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
+            border-radius: 8px;
+            overflow: hidden;
+            transform-origin: center center;
+            will-change: transform;
+            transform-style: preserve-3d;
+        }
+
+        /* The map artwork itself (static background artwork layer only) */
+        .map-bg {
+            display: block;
+            width: auto;
+            height: auto;
+            max-width: 100vw;
+            max-height: 100vh;
+            object-fit: contain;
+            pointer-events: none;
+        }
+
+        /* Overlay for interactive buttons matches map dimensions precisely */
+        .interactive-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: visible; /* Allows glowing filters to expand freely */
+        }
+
+        /* 
+           Mission Badge:
+           - Sized proportionally relative to the container (9.3% width).
+           - Stands as a fully visible, independent layer.
+           - Employs 3D transform layers for optimized, non-clipped transitions.
+        */
+        .mission-badge {
+            position: absolute;
+            width: 9.3%; 
+            aspect-ratio: 1 / 1;
+            transform: translate3d(-50%, -50%, 0) scale(1);
+            transform-origin: center center;
+            cursor: pointer;
+            pointer-events: auto;
+            touch-action: manipulation;
+            overflow: visible; 
+            opacity: 1; /* Fully visible standalone layer */
+            
+            /* Prevent WebKit subpixel clipping on scaling */
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            -webkit-transform-style: preserve-3d;
+            transform-style: preserve-3d;
+            will-change: transform;
+            
+            /* Symmetrical scaling transitions */
+            transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1), 
+                        filter 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        /* Image element for the transparent PNG badge */
+        .badge-img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+        }
+
+        /* Hover Behavior (Desktop Only): Centered scale & lift */
+        @media (hover: hover) {
+            .mission-badge:hover {
+                transform: translate3d(-50%, calc(-50% - 2px), 0) scale(1.05);
+                filter: drop-shadow(0 4px 12px rgba(255, 215, 0, 0.6)) brightness(1.08);
+            }
+        }
+
+        /* Click / Tap Active Sequence (Pop & Glow Bounce) */
+        .mission-badge.clicked {
+            pointer-events: none;
+            animation: badgeBounceAndGlow 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+            z-index: 10;
+        }
+
+        @keyframes badgeBounceAndGlow {
+            0% {
+                transform: translate3d(-50%, calc(-50% - 2px), 0) scale(1.05);
+                filter: drop-shadow(0 4px 12px rgba(255, 215, 0, 0.6)) brightness(1.08);
+            }
+            40% {
+                transform: translate3d(-50%, -50%, 0) scale(1.10); 
+                filter: drop-shadow(0 6px 20px rgba(255, 215, 0, 0.85)) brightness(1.15);
+            }
+            100% {
+                transform: translate3d(-50%, -50%, 0) scale(1.10);
+                filter: drop-shadow(0 5px 16px rgba(255, 215, 0, 0.75)) brightness(1.10);
+            }
+        }
+
+        /* 
+           Diagonal Golden Shine Sweep:
+           - Static circular overlay clipped with border-radius.
+           - Mix-blend-mode blends golden shine details with the underlying PNG graphics.
+        */
+        .mission-badge::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: linear-gradient(
+                115deg,
+                rgba(255, 255, 255, 0) 0%,
+                rgba(255, 255, 255, 0.25) 30%,
+                rgba(255, 223, 0, 0.85) 50%,
+                rgba(255, 255, 255, 0.25) 70%,
+                rgba(255, 255, 255, 0) 100%
+            );
+            background-size: 300% 100%;
+            background-position: 150% 0;
+            pointer-events: none;
+            opacity: 0;
+            mix-blend-mode: color-dodge;
+            transition: opacity 0.2s ease;
+        }
+
+        .mission-badge.clicked::after {
+            opacity: 1;
+            animation: shineSweep 0.4s ease-out forwards;
+        }
+
+        @keyframes shineSweep {
+            0% {
+                background-position: 150% 0;
+            }
+            100% {
+                background-position: -150% 0;
+            }
+        }
+
+        /* Transparent hotspot overlays with no visible rings or borders */
+        .ui-button {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            pointer-events: auto;
+            touch-action: manipulation;
+            background: transparent;
+            border: none;
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-wrapper" id="gameViewport">
+        <div class="map-container" id="mapLayer">
+            <!-- Background Map Image (Static only) -->
+            <img src="map.png" alt="Game Selection Map" class="map-bg" id="mapImage">
+            
+            <!-- Dynamic Interactive Overlays Layer -->
+            <div class="interactive-overlay" id="interactiveOverlay">
+                <!-- UI Buttons (Invisible pointer hotspots) -->
+                <div class="ui-button" id="btn-menu" style="left: 7.3%; top: 4.8%; width: 9%; height: 9%; border-radius: 50%;"></div>
+                <div class="ui-button" id="btn-achievement" style="left: 92.7%; top: 4.8%; width: 9%; height: 9%; border-radius: 50%;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Clean configuration array for independent PNG badges
+        const BADGES = [
+            { id: 1, image: 'badge1.png', x: 50.0, y: 86.6, level: 'level1.html' },
+            { id: 2, image: 'badge2.png', x: 50.0, y: 70.8, level: 'level2.html' },
+            { id: 3, image: 'badge3.png', x: 69.2, y: 59.8, level: 'level3.html' },
+            { id: 4, image: 'badge4.png', x: 27.4, y: 60.1, level: 'level4.html' },
+            { id: 5, image: 'badge5.png', x: 50.0, y: 40.8, level: 'level5.html' },
+            { id: 6, image: 'badge6.png', x: 14.5, y: 41.5, level: 'level6.html' },
+            { id: 7, image: 'badge7.png', x: 84.1, y: 41.5, level: 'level7.html' },
+            { id: 8, image: 'badge8.png', x: 79.7, y: 19.4, level: 'level8.html' },
+            { id: 9, image: 'badge9.png', x: 20.3, y: 19.4, level: 'level9.html' }
+        ];
+
+        // Web Audio Synthesizer (magical ding effect)
+        function playClickSound() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                
+                const audioCtx = new AudioContext();
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, audioCtx.currentTime); 
+                osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1); 
+                
+                gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.4);
+            } catch (e) {
+                console.warn("AudioContext blocked or unsupported.", e);
+            }
+        }
+
+        // --- CAMERA STATE ENGINE ---
+        const viewport = document.getElementById('gameViewport');
+        const mapContainer = document.getElementById('mapLayer');
+
+        let targetScale = 1.0;
+        let targetX = 0;
+        let targetY = 0;
+
+        let currentScale = 1.0;
+        let currentX = 0;
+        let currentY = 0;
+
+        // Inertia state variables
+        let vx = 0;
+        let vy = 0;
+        let lastPointerX = 0;
+        let lastPointerY = 0;
+        let lastPointerTime = 0;
+
+        // Pointer tracking lists
+        let activePointers = [];
+        let isPointerDown = false;
+        let startX = 0;
+        let startY = 0;
+        let startTargetX = 0;
+        let startTargetY = 0;
+        let dragExceeded = false; // Set to true if the movement exceeds the 8px threshold
+
+        // Pinch-zoom tracking
+        let initialPinchDist = 0;
+        let initialPinchScale = 1.0;
+        let pinchCenterX = 0;
+        let pinchCenterY = 0;
+
+        // Caching dimensions to avoid layout thrashing during animation loop
+        let viewW = viewport.clientWidth;
+        let viewH = viewport.clientHeight;
+        let mapW = mapContainer.offsetWidth;
+        let mapH = mapContainer.offsetHeight;
+
+        window.addEventListener('resize', () => {
+            viewW = viewport.clientWidth;
+            viewH = viewport.clientHeight;
+            mapW = mapContainer.offsetWidth;
+            mapH = mapContainer.offsetHeight;
+            clampBounds();
+        });
+
+        // Easing interpolation
+        const lerp = (start, end, amt) => (1 - amt) * start + amt * end;
+
+        // Camera bounding clamp algorithm: keeps map within view viewport limits
+        function clampBounds() {
+            const scaledW = mapW * targetScale;
+            const scaledH = mapH * targetScale;
+
+            const limitX = Math.max(0, (scaledW - viewW) / 2);
+            const limitY = Math.max(0, (scaledH - viewH) / 2);
+
+            if (scaledW <= viewW) {
+                targetX = 0;
+            } else {
+                targetX = Math.max(-limitX, Math.min(limitX, targetX));
+            }
+
+            if (scaledH <= viewH) {
+                targetY = 0;
+            } else {
+                targetY = Math.max(-limitY, Math.min(limitY, targetY));
+            }
+        }
+
+        // Eased scale targeting towards a specific anchor coordinate
+        function zoomToPoint(zoomCenterViewportX, zoomCenterViewportY, newScale) {
+            newScale = Math.max(1.0, Math.min(2.0, newScale));
+            if (newScale === targetScale) return;
+
+            const px = zoomCenterViewportX - viewW / 2;
+            const py = zoomCenterViewportY - viewH / 2;
+
+            const scaleRatio = newScale / targetScale;
+            targetX = px - (px - targetX) * scaleRatio;
+            targetY = py - (py - targetY) * scaleRatio;
+            targetScale = newScale;
+
+            clampBounds();
+        }
+
+        // --- POINTER EVENTS SYSTEM ---
+        viewport.addEventListener('pointerdown', (e) => {
+            if (e.target.closest('.ui-button')) return;
+
+            activePointers.push(e);
+            isPointerDown = true;
+            vx = 0; // Cancel old physics speed immediately on contact
+            vy = 0;
+
+            if (activePointers.length === 1) {
+                startX = e.clientX;
+                startY = e.clientY;
+                startTargetX = targetX;
+                startTargetY = targetY;
+                dragExceeded = false;
+
+                lastPointerX = e.clientX;
+                lastPointerY = e.clientY;
+                lastPointerTime = performance.now();
+            } else if (activePointers.length === 2) {
+                const p1 = activePointers[0];
+                const p2 = activePointers[1];
+                initialPinchDist = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+                initialPinchScale = targetScale;
+                pinchCenterX = (p1.clientX + p2.clientX) / 2;
+                pinchCenterY = (p1.clientY + p2.clientY) / 2;
+            }
+            viewport.setPointerCapture(e.pointerId);
+        });
+
+        viewport.addEventListener('pointermove', (e) => {
+            const idx = activePointers.findIndex(p => p.pointerId === e.pointerId);
+            if (idx !== -1) {
+                activePointers[idx] = e;
+            }
+
+            if (!isPointerDown) return;
+
+            if (activePointers.length === 1) {
+                const p = activePointers[0];
+                const dx = p.clientX - startX;
+                const dy = p.clientY - startY;
+
+                if (Math.hypot(p.clientX - startX, p.clientY - startY) > 8) {
+                    dragExceeded = true;
+                }
+
+                if (dragExceeded) {
+                    targetX = startTargetX + dx;
+                    targetY = startTargetY + dy;
+                    clampBounds();
+
+                    // Calculate instant drag speed for momentum
+                    const now = performance.now();
+                    const dt = now - lastPointerTime;
+                    if (dt > 0) {
+                        vx = (p.clientX - lastPointerX) / dt;
+                        vy = (p.clientY - lastPointerY) / dt;
+                    }
+                    lastPointerX = p.clientX;
+                    lastPointerY = p.clientY;
+                    lastPointerTime = now;
+                }
+            } else if (activePointers.length === 2) {
+                dragExceeded = true; // Dual touches count as a drag by default
+                const p1 = activePointers[0];
+                const p2 = activePointers[1];
+                const currentDist = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+                const scaleFactor = currentDist / initialPinchDist;
+                
+                const nextScale = initialPinchScale * scaleFactor;
+                const midX = (p1.clientX + p2.clientX) / 2;
+                const midY = (p1.clientY + p2.clientY) / 2;
+                
+                zoomToPoint(midX, midY, nextScale);
+            }
+        });
+
+        const handlePointerUp = (e) => {
+            const idx = activePointers.findIndex(p => p.pointerId === e.pointerId);
+            if (idx !== -1) {
+                activePointers.splice(idx, 1);
+            }
+
+            if (activePointers.length === 0) {
+                isPointerDown = false;
+                if (!dragExceeded) {
+                    vx = 0;
+                    vy = 0;
+                } else {
+                    // Lock initial sliding momentum cap for intuitive control
+                    const maxSpeed = 1.5;
+                    vx = Math.max(-maxSpeed, Math.min(maxSpeed, vx));
+                    vy = Math.max(-maxSpeed, Math.min(maxSpeed, vy));
+                }
+            } else if (activePointers.length === 1) {
+                // Return to single drag focus smoothly if one finger drops off
+                const p = activePointers[0];
+                startX = p.clientX;
+                startY = p.clientY;
+                startTargetX = targetX;
+                startTargetY = targetY;
+                lastPointerX = p.clientX;
+                lastPointerY = p.clientY;
+                lastPointerTime = performance.now();
+            }
+            try {
+                viewport.releasePointerCapture(e.pointerId);
+            } catch (err) {}
+        };
+
+        viewport.addEventListener('pointerup', handlePointerUp);
+        viewport.addEventListener('pointercancel', handlePointerUp);
+
+        // Desktop Mouse Wheel zoom interface
+        viewport.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomFactor = 0.1;
+            const direction = e.deltaY < 0 ? 1 : -1;
+            const nextScale = targetScale + direction * zoomFactor;
+            zoomToPoint(e.clientX, e.clientY, nextScale);
+        }, { passive: false });
+
+        // Mobile/Tablet Double Tap toggle: 100% -> 180% -> 100%
+        let lastTapTime = 0;
+        viewport.addEventListener('pointerdown', (e) => {
+            if (e.target.closest('.ui-button')) return;
+            const currentTime = new Date().getTime();
+            const tapDelay = currentTime - lastTapTime;
+            if (tapDelay < 300 && tapDelay > 0) {
+                handleDoubleTap(e.clientX, e.clientY);
+                e.preventDefault();
+            }
+            lastTapTime = currentTime;
+        });
+
+        function handleDoubleTap(x, y) {
+            if (targetScale > 1.2) {
+                zoomToPoint(x, y, 1.0);
+            } else {
+                zoomToPoint(x, y, 1.8);
+            }
+        }
+
+        // --- ANIMATION INTERPOLATION RENDERING LOOP ---
+        function renderLoop() {
+            // Apply inertial friction physics if contact is released
+            if (!isPointerDown) {
+                if (Math.abs(vx) > 0.01 || Math.abs(vy) > 0.01) {
+                    targetX += vx * 16; 
+                    targetY += vy * 16;
+                    vx *= 0.88; // Friction deceleration coefficient
+                    vy *= 0.88;
+                    clampBounds();
+                } else {
+                    vx = 0;
+                    vy = 0;
+                }
+            }
+
+            // Interpolate coordinates with buttery smooth easing curves
+            currentScale = lerp(currentScale, targetScale, 0.15);
+            currentX = lerp(currentX, targetX, 0.15);
+            currentY = lerp(currentY, targetY, 0.15);
+
+            mapContainer.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) scale(${currentScale})`;
+
+            requestAnimationFrame(renderLoop);
+        }
+
+        // Run animation tick
+        requestAnimationFrame(renderLoop);
+
+        // --- BADGE GENERATION PIPELINE ---
+        function generateBadges() {
+            const overlay = document.getElementById('interactiveOverlay');
+            
+            BADGES.forEach(badge => {
+                // Create badge container wrapper
+                const el = document.createElement('div');
+                el.className = 'mission-badge';
+                el.style.left = `${badge.x}%`;
+                el.style.top = `${badge.y}%`;
+                el.setAttribute('data-level', badge.id);
+                
+                // Add the transparent PNG image
+                const img = document.createElement('img');
+                img.src = badge.image;
+                img.alt = `Level ${badge.id}`;
+                img.className = 'badge-img';
+                
+                // Add the internal shine sweep container
+                const shine = document.createElement('div');
+                shine.className = 'shine-sweep';
+                
+                el.appendChild(img);
+                el.appendChild(shine);
+                
+                // Setup click and touch interaction logic
+                const handleActivation = (e) => {
+                    e.preventDefault();
+                    if (el.classList.contains('clicked')) return;
+
+                    // Prevent click activation if the interaction was actually a map drag
+                    if (dragExceeded) return;
+
+                    el.classList.add('clicked');
+                    playClickSound();
+
+                    setTimeout(() => {
+                        window.location.href = badge.level;
+                    }, 400);
+                };
+
+                el.addEventListener('touchstart', (e) => {
+                    // Suppress level activations if we are dual-touching (pinching)
+                    if (activePointers.length > 1) return;
+                });
+                
+                el.addEventListener('click', handleActivation);
+                
+                overlay.appendChild(el);
+            });
+
+            // Read the un-scaled layout bounding values once constructed
+            mapW = mapContainer.offsetWidth;
+            mapH = mapContainer.offsetHeight;
+        }
+
+        // Run badge construction on load
+        window.addEventListener('DOMContentLoaded', generateBadges);
+
+        // Menu and Achievement Button Handlers (silent absolute hotspots)
+        document.getElementById('btn-menu').addEventListener('click', (e) => {
+            if (dragExceeded) return;
+            playClickSound();
+            setTimeout(() => { alert("Menu Pressed"); }, 100);
+        });
+        document.getElementById('btn-achievement').addEventListener('click', (e) => {
+            if (dragExceeded) return;
+            playClickSound();
+            setTimeout(() => { alert("Achievements Pressed"); }, 100);
+        });
+    </script>
+</body>
+</html>
