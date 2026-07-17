@@ -36,15 +36,13 @@
         }
 
         /* 
-           Container scales and preserves aspect ratio exactly:
-           - Sized dynamically to fit the height of landscape viewports (desktop).
-           - Proportional scaling prevents any graphical stretching.
+           Container:
+           - Sized dynamically in JS based on viewport aspect ratio.
+           - Proportional scaling prevents any graphical stretching or cropping.
         */
         .map-container {
             position: relative;
             display: inline-block;
-            height: 100vh;
-            width: calc(100vh * (1000 / 1482)); /* Proportional width (1000:1482 ratio) */
             box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
             border-radius: 8px;
             overflow: visible;
@@ -59,15 +57,6 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
-        }
-
-        /* Styling for Portrait / Mobile (Fills available screen width edge-to-edge) */
-        @media (orientation: portrait) {
-            .map-container {
-                width: 100vw;
-                height: calc(100vw * (1482 / 1000)); /* Proportional height (1000:1482 ratio) */
-                border-radius: 0; /* Clean edge-to-edge rendering on mobile screens */
-            }
         }
 
         /* Overlay for interactive buttons matches map dimensions precisely */
@@ -311,21 +300,32 @@
         let mapW = 0;
         let mapH = 0;
 
-        // Safe dynamic dimension query logic (prevents 60FPS layout thrashing)
+        // Dynamic, proportional aspect ratio resolution
         function updateMapDimensions() {
-            if (mapContainer.offsetWidth > 0 && mapContainer.offsetHeight > 0) {
-                mapW = mapContainer.offsetWidth;
-                mapH = mapContainer.offsetHeight;
-                clampBounds();
-            }
-        }
-
-        window.addEventListener('resize', () => {
             viewW = viewport.clientWidth;
             viewH = viewport.clientHeight;
-            updateMapDimensions();
-        });
 
+            const mapAspectRatio = 1000 / 1482; // Native aspect ratio of map.png
+            const viewAspectRatio = viewW / viewH;
+
+            // Fit using contain logic to display the map as large as possible without any cropping
+            if (viewAspectRatio > mapAspectRatio) {
+                // Viewport is wider than the map aspect ratio. Constrain by height.
+                mapH = viewH;
+                mapW = viewH * mapAspectRatio;
+            } else {
+                // Viewport is narrower than the map aspect ratio. Constrain by width.
+                mapW = viewW;
+                mapH = viewW / mapAspectRatio;
+            }
+
+            mapContainer.style.width = `${mapW}px`;
+            mapContainer.style.height = `${mapH}px`;
+
+            clampBounds();
+        }
+
+        window.addEventListener('resize', updateMapDimensions);
         mapImage.addEventListener('load', updateMapDimensions);
         viewport.addEventListener('pointerdown', updateMapDimensions);
 
