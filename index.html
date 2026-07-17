@@ -346,7 +346,7 @@
     <!-- Fantasy-themed Fullscreen Loading Screen -->
     <div class="loading-screen" id="loadingScreen">
         <div class="loading-content">
-            <h1 class="game-logo">Level Selection</h1>
+            <h1 class="game-logo">选择你的任务</h1>
             <div class="spinner-container">
                 <div class="fantasy-spinner"></div>
             </div>
@@ -484,11 +484,16 @@
         function setInitialCamera() {
             const isMobile = window.innerWidth <= 768;
             if (isMobile) {
-                // Cover mode naturally overflows. A default zoom of 1.25 centers beautifully on the main path,
-                // and provides tactile room to pan smoothly in both directions.
+                // Cover mode naturally overflows. Set zoom to 1.25 on load
                 targetCameraScale = 1.25;
+                
+                const scaledH = mapH * targetCameraScale;
+                const limitY = Math.max(0, (scaledH - viewH) / 2);
+                
+                // Position camera proportionally higher so the top layout aligns exactly with viewport top.
+                // Moving +limitY slides the container down, bringing the header banner and top buttons directly into view.
+                targetCameraY = limitY;
                 targetCameraX = 0;
-                targetCameraY = 0;
             } else {
                 targetCameraScale = 1.0;
                 targetCameraX = 0;
