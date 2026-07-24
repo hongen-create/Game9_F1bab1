@@ -15,11 +15,16 @@
     <meta name="apple-mobile-web-app-title" content="Game Map">
     <link rel="apple-touch-icon" href="icon-192.png">
 
-    <!-- Instant skip check to prevent any FOUC/Flickering of the cloud screen -->
+    <!-- Instant skip check for 1-hour Cloud Intro cooldown -->
     <script>
-        if (localStorage.getItem("introPlayed") === "true") {
-            document.documentElement.classList.add('intro-played');
-        }
+        (function() {
+            const lastIntroTime = Number(localStorage.getItem("introLastPlayedAt"));
+            const introCooldown = 60 * 60 * 1000; // 1 hour cooldown
+            const shouldShowIntro = !lastIntroTime || (Date.now() - lastIntroTime >= introCooldown);
+            if (!shouldShowIntro) {
+                document.documentElement.classList.add('intro-played');
+            }
+        })();
     </script>
 
     <style>
@@ -197,7 +202,7 @@
             transition: opacity 0.5s ease-out 1.6s, visibility 0.5s ease-out 1.6s, filter 0.3s ease-out;
         }
 
-        /* Fast suppression of cloud screen if already completed once */
+        /* Fast suppression of cloud screen if within 1-hour cooldown */
         .intro-played .cloud-intro-screen {
             display: none !important;
         }
@@ -807,6 +812,156 @@
             border: none;
             outline: none;
         }
+
+        /* --- GAME MENU MODALS & OVERLAYS --- */
+        .menu-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            background-color: rgba(0, 0, 0, 0.78);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 0.25s ease, visibility 0.25s ease;
+        }
+
+        .menu-modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+
+        .menu-modal-content {
+            position: relative;
+            width: 85%;
+            max-width: 360px;
+            background: linear-gradient(145deg, #161a22 0%, #0b0d10 100%);
+            border: 2px solid #b8860b;
+            border-radius: 8px;
+            padding: 26px 20px 22px 20px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.9), 0 0 15px rgba(255, 215, 0, 0.25), inset 0 0 15px rgba(255, 215, 0, 0.08);
+            text-align: center;
+            transform: scale(0.88);
+            transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .menu-modal-overlay.active .menu-modal-content {
+            transform: scale(1);
+        }
+
+        .menu-close-btn {
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            background: transparent;
+            border: none;
+            color: #ffd700;
+            font-size: 1.8rem;
+            font-weight: bold;
+            line-height: 1;
+            cursor: pointer;
+            outline: none;
+            padding: 4px 8px;
+            transition: color 0.2s, transform 0.2s;
+        }
+
+        .menu-close-btn:hover {
+            color: #ffffff;
+            transform: scale(1.15);
+        }
+
+        .menu-title {
+            font-family: Georgia, serif;
+            font-size: 1.35rem;
+            color: #ffd700;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            text-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+        }
+
+        .menu-body {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+            width: 100%;
+        }
+
+        .menu-btn {
+            width: 100%;
+            padding: 13px 20px;
+            font-family: Georgia, serif;
+            font-size: 1rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+            border-radius: 4px;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .reset-btn {
+            background: linear-gradient(135deg, #7a1d1d 0%, #b32424 50%, #7a1d1d 100%);
+            border: 1px solid #ff6b6b;
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(179, 36, 36, 0.4);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+        }
+
+        .reset-btn:hover {
+            background: linear-gradient(135deg, #992222 0%, #d93030 50%, #992222 100%);
+            box-shadow: 0 4px 14px rgba(217, 48, 48, 0.6);
+            transform: translateY(-1px);
+        }
+
+        .confirm-message {
+            color: #e0e4eb;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin-bottom: 22px;
+        }
+
+        .confirm-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .cancel-btn {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #cccccc;
+        }
+
+        .cancel-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+        }
+
+        .confirm-reset-btn {
+            flex: 1;
+            background: linear-gradient(135deg, #8a640f 0%, #b8860b 50%, #8a640f 100%);
+            border: 1px solid #ffd700;
+            color: #0b0d10;
+            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+        }
+
+        .confirm-reset-btn:hover {
+            background: linear-gradient(135deg, #a67913 0%, #ffd700 50%, #a67913 100%);
+            box-shadow: 0 0 12px rgba(255, 215, 0, 0.5);
+        }
     </style>
 </head>
 <body>
@@ -862,7 +1017,37 @@
         </div>
     </div>
 
+    <!-- Game Menu Modal Overlay -->
+    <div class="menu-modal-overlay" id="menuModal" style="display: none;">
+        <div class="menu-modal-content">
+            <button class="menu-close-btn" id="btnCloseMenu" aria-label="Close">&times;</button>
+            <h2 class="menu-title">游戏菜单</h2>
+            <div class="menu-body">
+                <button class="menu-btn reset-btn" id="btnResetGame">重置游戏</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reset Confirmation Modal -->
+    <div class="menu-modal-overlay" id="confirmResetModal" style="display: none;">
+        <div class="menu-modal-content">
+            <h3 class="menu-title">确认重置</h3>
+            <p class="confirm-message">确定要重新开始游戏吗？所有关卡进度将会被重置。</p>
+            <div class="confirm-actions">
+                <button class="menu-btn cancel-btn" id="btnCancelReset">取消</button>
+                <button class="menu-btn confirm-reset-btn" id="btnConfirmReset">重新开始</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // --- HELPER FOR 1-HOUR CLOUD INTRO COOLDOWN SYSTEM ---
+        function shouldShowCloudIntro() {
+            const lastIntroTime = Number(localStorage.getItem("introLastPlayedAt"));
+            const introCooldown = 60 * 60 * 1000; // 1 hour cooldown duration
+            return !lastIntroTime || (Date.now() - lastIntroTime >= introCooldown);
+        }
+
         // --- REUSABLE PROGRESSION SYSTEM ENGINE ---
         const GameProgression = {
             STORAGE_KEY: 'game_level_progression_v1',
@@ -963,7 +1148,9 @@
             resetProgression() {
                 const init = this.getInitialState();
                 this.save(init);
-                localStorage.removeItem("introPlayed"); // Clears the played intro state to allow re-experiencing the cinematic opening
+                localStorage.removeItem("introLastPlayedAt"); // Resets the 1-hour intro cooldown
+                localStorage.removeItem("introPlayed");      // Clean up legacy key if existing
+                sessionStorage.removeItem("introPlayed");
                 return init;
             }
         };
@@ -1006,7 +1193,7 @@
         const bgMusic = new Audio('bg_music.mp3');
         bgMusic.loop = true;
         bgMusic.preload = 'auto';
-        bgMusic.volume = 0; // Starts at 0 for initial 1s fade-in
+        bgMusic.volume = 0; // Starts at 0 for initial fade-in
 
         const clickSfx = new Audio('click1.mp3');
         clickSfx.preload = 'auto';
@@ -1023,25 +1210,76 @@
             }
         }
 
-        // Smooth volume fade-in over 1 second (volume limits capped at 35%)
+        // Smooth volume fade-in over duration (volume limits capped at 35%)
         function fadeInBGM(duration = 1000) {
             bgMusic.volume = 0;
-            bgMusic.play().then(() => {
-                const targetVolume = 0.35; // Volume optimized between 30-40%
-                const startTime = performance.now();
-                function step(now) {
-                    const elapsed = now - startTime;
-                    const progress = Math.min(elapsed / duration, 1);
-                    bgMusic.volume = progress * targetVolume;
-                    if (progress < 1) {
-                        requestAnimationFrame(step);
+            const playPromise = bgMusic.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    const targetVolume = 0.35; // Volume optimized between 30-40%
+                    const startTime = performance.now();
+                    function step(now) {
+                        const elapsed = now - startTime;
+                        const progress = Math.min(elapsed / duration, 1);
+                        bgMusic.volume = progress * targetVolume;
+                        if (progress < 1) {
+                            requestAnimationFrame(step);
+                        }
                     }
-                }
-                requestAnimationFrame(step);
-            }).catch(err => {
-                console.warn("Autoplay blocked. Registering interaction fallbacks.", err);
-                setupAutoplayFallback();
-            });
+                    requestAnimationFrame(step);
+                }).catch(err => {
+                    console.warn("Autoplay blocked. Registering interaction fallbacks.", err);
+                    setupAutoplayFallback();
+                });
+            }
+        }
+
+        // Reliable BGM resume function across navigation, focus, and BFCache restores
+        let isAutoplayFallbackRegistered = false;
+
+        function setupAutoplayFallback() {
+            if (isAutoplayFallbackRegistered) return;
+            isAutoplayFallbackRegistered = true;
+
+            const startOnInteraction = () => {
+                ensureBGMPlaying();
+                cleanupListeners();
+            };
+
+            const cleanupListeners = () => {
+                window.removeEventListener('click', startOnInteraction);
+                window.removeEventListener('touchend', startOnInteraction);
+                window.removeEventListener('pointerdown', startOnInteraction);
+                isAutoplayFallbackRegistered = false;
+            };
+
+            window.addEventListener('click', startOnInteraction, { once: true });
+            window.addEventListener('touchend', startOnInteraction, { once: true });
+            window.addEventListener('pointerdown', startOnInteraction, { once: true });
+        }
+
+        function ensureBGMPlaying() {
+            // Do not play before player clicks "进入地图" if Cloud Intro is currently active
+            if (shouldShowCloudIntro()) {
+                return;
+            }
+
+            const targetVolume = 0.35;
+
+            if (!bgMusic.paused && bgMusic.volume > 0) {
+                return; // Already playing properly
+            }
+
+            bgMusic.volume = targetVolume;
+            const playPromise = bgMusic.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    bgMusic.volume = targetVolume;
+                }).catch(err => {
+                    console.warn("BGM resume blocked:", err);
+                    setupAutoplayFallback();
+                });
+            }
         }
 
         // Smooth volume fade-out over 300-500ms before redirection
@@ -1062,23 +1300,6 @@
                 }
                 requestAnimationFrame(step);
             });
-        }
-
-        // Autoplay Fallback trigger on first touch interaction
-        let hasInteractedForAudio = false;
-        function setupAutoplayFallback() {
-            const startOnInteraction = () => {
-                if (hasInteractedForAudio) return;
-                hasInteractedForAudio = true;
-                fadeInBGM();
-                // Clean up registration listeners
-                window.removeEventListener('click', startOnInteraction);
-                window.removeEventListener('touchend', startOnInteraction);
-                window.removeEventListener('pointerdown', startOnInteraction);
-            };
-            window.addEventListener('click', startOnInteraction, { once: true });
-            window.addEventListener('touchend', startOnInteraction, { once: true });
-            window.addEventListener('pointerdown', startOnInteraction, { once: true });
         }
 
         // --- CAMERA STATE ENGINE ---
@@ -1142,7 +1363,6 @@
                 const limitY = Math.max(0, (scaledH - viewH) / 2);
                 
                 // Position camera proportionally higher so the top layout aligns exactly with viewport top.
-                // Moving +limitY slides the container down, bringing the header banner and top buttons directly into view.
                 targetCameraY = limitY;
                 targetCameraX = 0;
             } else {
@@ -1264,8 +1484,111 @@
             clampBounds();
         }
 
+        // --- MENU MODAL INTERACTION CONTROLLERS ---
+        const menuModal = document.getElementById('menuModal');
+        const confirmResetModal = document.getElementById('confirmResetModal');
+        const btnCloseMenu = document.getElementById('btnCloseMenu');
+        const btnResetGame = document.getElementById('btnResetGame');
+        const btnCancelReset = document.getElementById('btnCancelReset');
+        const btnConfirmReset = document.getElementById('btnConfirmReset');
+
+        function openMenuModal() {
+            if (menuModal) {
+                menuModal.style.display = 'flex';
+                menuModal.offsetHeight; // Force reflow for smooth animation
+                menuModal.classList.add('active');
+            }
+        }
+
+        function closeMenuModal() {
+            if (menuModal) {
+                menuModal.classList.remove('active');
+                setTimeout(() => {
+                    menuModal.style.display = 'none';
+                }, 250);
+            }
+        }
+
+        function openConfirmResetModal() {
+            closeMenuModal();
+            if (confirmResetModal) {
+                confirmResetModal.style.display = 'flex';
+                confirmResetModal.offsetHeight; // Force reflow
+                confirmResetModal.classList.add('active');
+            }
+        }
+
+        function closeConfirmResetModal() {
+            if (confirmResetModal) {
+                confirmResetModal.classList.remove('active');
+                setTimeout(() => {
+                    confirmResetModal.style.display = 'none';
+                }, 250);
+            }
+        }
+
+        if (btnCloseMenu) {
+            btnCloseMenu.addEventListener('click', () => {
+                playClickSound();
+                closeMenuModal();
+            });
+        }
+
+        if (btnResetGame) {
+            btnResetGame.addEventListener('click', () => {
+                playClickSound();
+                openConfirmResetModal();
+            });
+        }
+
+        if (btnCancelReset) {
+            btnCancelReset.addEventListener('click', () => {
+                playClickSound();
+                closeConfirmResetModal();
+            });
+        }
+
+        if (btnConfirmReset) {
+            btnConfirmReset.addEventListener('click', () => {
+                playClickSound();
+                
+                // Perform complete reset
+                GameProgression.resetProgression();
+                localStorage.removeItem("introLastPlayedAt");
+                localStorage.removeItem("introPlayed");
+                sessionStorage.removeItem("introPlayed");
+
+                // Clean reload for total fresh-start testing
+                window.location.reload();
+            });
+        }
+
+        // Backdrop click to close modals
+        if (menuModal) {
+            menuModal.addEventListener('click', (e) => {
+                if (e.target === menuModal) {
+                    playClickSound();
+                    closeMenuModal();
+                }
+            });
+        }
+
+        if (confirmResetModal) {
+            confirmResetModal.addEventListener('click', (e) => {
+                if (e.target === confirmResetModal) {
+                    playClickSound();
+                    closeConfirmResetModal();
+                }
+            });
+        }
+
         // --- POINTER EVENTS SYSTEM ---
         viewport.addEventListener('pointerdown', (e) => {
+            // Ignore viewport pan when interacting with open modals
+            if (menuModal.classList.contains('active') || confirmResetModal.classList.contains('active')) {
+                return;
+            }
+
             pressedBadge = e.target.closest('.mission-badge');
             pressedUIButton = e.target.closest('.ui-button');
 
@@ -1402,7 +1725,7 @@
                         playClickSound();
                         setTimeout(() => {
                             if (buttonId === 'btn-menu') {
-                                alert("Menu Pressed");
+                                openMenuModal();
                             } else if (buttonId === 'btn-achievement') {
                                 alert("Achievements Pressed");
                             }
@@ -1450,7 +1773,7 @@
         // Mobile/Tablet Double Tap toggle: zoom relative to device profile
         let lastTapTime = 0;
         viewport.addEventListener('pointerdown', (e) => {
-            if (e.target.closest('.ui-button')) return;
+            if (e.target.closest('.ui-button') || e.target.closest('.menu-modal-content')) return;
             const currentTime = new Date().getTime();
             const tapDelay = currentTime - lastTapTime;
             if (tapDelay < 300 && tapDelay > 0) {
@@ -1719,11 +2042,11 @@
             // Stabilize initial container dimensions
             updateMapDimensions();
 
-            // Check if cinematic intro was already completed
-            const isIntroPlayed = localStorage.getItem("introPlayed") === "true";
+            // Evaluate 1-hour Cloud Intro Cooldown condition
+            const showIntro = shouldShowCloudIntro();
 
-            if (isIntroPlayed) {
-                // Instantly remove introduction components to preserve performance
+            if (!showIntro) {
+                // Within 1-hour cooldown: Instantly remove cloud intro screen
                 const cloudIntroScreen = document.getElementById('cloudIntroScreen');
                 if (cloudIntroScreen) cloudIntroScreen.remove();
 
@@ -1731,11 +2054,14 @@
                 gameViewport.classList.add('interactive');
                 loadingScreen.classList.add('fade-out');
 
-                // Autoplay background music with smooth fade-in (will handle policy overrides gracefully)
-                fadeInBGM();
+                // Ensure BGM plays reliably for returning sessions
+                ensureBGMPlaying();
             } else {
-                // First Visit layout sequence:
-                // Randomize the start positions of all cloud layers on load
+                // Cooldown expired or first-time visit:
+                // Clean up legacy boolean key if present
+                localStorage.removeItem("introPlayed");
+
+                // Randomize start positions of cloud layers on load
                 const layers = document.querySelectorAll('.cloud-layer');
                 layers.forEach(layer => {
                     const rx = Math.floor(Math.random() * 1200);
@@ -1743,7 +2069,7 @@
                     layer.style.backgroundPosition = `${rx}px ${ry}px`;
                 });
 
-                // Fade out the loading screen to reveal the Cloud overlay underneath
+                // Fade out loading screen to reveal Cloud overlay underneath
                 loadingScreen.classList.add('fade-out');
 
                 // Bind Cinematic Cloud "进入地图" Button Interaction
@@ -1751,8 +2077,8 @@
                 const cloudIntroScreen = document.getElementById('cloudIntroScreen');
 
                 btnEnterMap.addEventListener('click', () => {
-                    // Lock intro state immediately to bypass on all future sessions
-                    localStorage.setItem("introPlayed", "true");
+                    // Save timestamp when player actually completes/enters through Cloud Intro
+                    localStorage.setItem("introLastPlayedAt", Date.now().toString());
 
                     // Play soft magical transition sound immediately
                     playClickSound();
@@ -1776,14 +2102,20 @@
             console.log("To reset the game completely, run: GameProgression.resetProgression()");
         }
 
-        // Dynamic State Refresher on history page navigation / BF-Cache focus events
+        // Dynamic State & Audio Refresher on history page navigation / BF-Cache focus events
         window.addEventListener('pageshow', (e) => {
             updateBadgeStates();
+            if (!shouldShowCloudIntro()) {
+                ensureBGMPlaying();
+            }
         });
 
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
                 updateBadgeStates();
+                if (!shouldShowCloudIntro()) {
+                    ensureBGMPlaying();
+                }
             }
         });
 
