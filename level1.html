@@ -700,7 +700,7 @@
                 <span>第一关</span>
                 <span style="font-size: 0.8rem; color: var(--text-muted);">| 颜色配配</span>
             </div>
-            <a href="index.html" class="back-btn">返回地图</a>
+            <a href="index.html" class="back-btn" id="btnTopBack">返回地图</a>
         </div>
 
         <!-- Task Progress -->
@@ -807,6 +807,122 @@
     </div>
 
     <script>
+        // --- 0. CENTRALIZED AUDIO SYSTEM ---
+        const SOUND_FILES = {
+            door: 'wooddoor.wav',
+            merge: 'tap.wav',
+            finalTile: 'abcd_appear.wav',
+            submit: 'soft_click.wav',
+            wrong: 'wrong.wav',
+            correct: 'correct-answer.wav',
+            levelComplete: 'game-level-completed.wav'
+        };
+
+        const SOUND_VOLUMES = {
+            door: 0.65,
+            merge: 0.45,
+            finalTile: 0.65,
+            submit: 0.50,
+            wrong: 0.60,
+            correct: 0.70,
+            levelComplete: 0.75,
+            bgm: 0.18
+        };
+
+        const sounds = {};
+        let bgmAudio = null;
+        let audioUnlocked = false;
+
+        // Preload sound objects
+        Object.keys(SOUND_FILES).forEach(key => {
+            try {
+                const audio = new Audio(SOUND_FILES[key]);
+                audio.volume = SOUND_VOLUMES[key] || 0.5;
+                audio.preload = 'auto';
+                sounds[key] = audio;
+            } catch (e) {
+                console.warn('Audio initialization warning for ' + key, e);
+            }
+        });
+
+        // Initialize Background Music single instance
+        try {
+            bgmAudio = new Audio('background.mp3');
+            bgmAudio.loop = true;
+            bgmAudio.volume = SOUND_VOLUMES.bgm; // 0.18
+            bgmAudio.preload = 'auto';
+        } catch (e) {
+            console.warn('BGM initialization warning', e);
+        }
+
+        function unlockAudio() {
+            if (audioUnlocked) return;
+            audioUnlocked = true;
+            Object.keys(sounds).forEach(key => {
+                const sound = sounds[key];
+                if (sound) {
+                    const origVol = sound.volume;
+                    sound.volume = 0;
+                    const p = sound.play();
+                    if (p !== undefined) {
+                        p.then(() => {
+                            sound.pause();
+                            sound.currentTime = 0;
+                            sound.volume = origVol;
+                        }).catch(() => {
+                            sound.volume = origVol;
+                        });
+                    }
+                }
+            });
+        }
+
+        function startBGM() {
+            if (!bgmAudio) return;
+            bgmAudio.volume = SOUND_VOLUMES.bgm; // 0.18
+            const p = bgmAudio.play();
+            if (p !== undefined) {
+                p.catch(() => {});
+            }
+        }
+
+        function stopBGM() {
+            if (!bgmAudio) return;
+            try {
+                bgmAudio.pause();
+                bgmAudio.currentTime = 0;
+            } catch (e) {}
+        }
+
+        function duckBGM() {
+            if (!bgmAudio) return;
+            bgmAudio.volume = 0.08;
+        }
+
+        function playSound(name) {
+            if (!sounds[name]) return;
+            try {
+                const sound = sounds[name];
+                if (!sound.paused) {
+                    const clone = sound.cloneNode();
+                    clone.volume = SOUND_VOLUMES[name] || 0.5;
+                    const p = clone.play();
+                    if (p !== undefined) p.catch(() => {});
+                } else {
+                    sound.currentTime = 0;
+                    const p = sound.play();
+                    if (p !== undefined) p.catch(() => {});
+                }
+            } catch (e) {
+                // Fail silently to safeguard gameplay execution
+            }
+        }
+
+        // Global user gesture listeners for unlocking audio on mobile
+        document.addEventListener('pointerdown', unlockAudio, { once: true });
+        document.addEventListener('keydown', unlockAudio, { once: true });
+
+
         // --- 1. QUESTIONS DATA STRUCTURE (Unchanged Malay Sejarah Content) ---
         const QUESTIONS = [
             {
@@ -1036,6 +1152,8 @@
             if (gameState !== 'playing') return;
 
             let moved = false;
+            let normalMerged = false;
+            let finalTileCreated = false;
 
             // Reset merge status
             for (let r = 0; r < 4; r++) {
@@ -1056,6 +1174,13 @@
                         tiles[i].level < 3) {
                         
                         const newLevel = tiles[i].level + 1; // Level 1 + 1 -> 2, Level 2 + 2 -> 3
+                        
+                        if (newLevel === 3) {
+                            finalTileCreated = true;
+                        } else {
+                            normalMerged = true;
+                        }
+
                         const mergedTile = {
                             id: tileIdCounter++,
                             family: tiles[i].family,
@@ -1109,6 +1234,13 @@
             }
 
             if (moved) {
+                // Play audio prioritizing Final Tile creation over normal merge
+                if (finalTileCreated) {
+                    playSound('finalTile');
+                } else if (normalMerged) {
+                    playSound('merge');
+                }
+
                 spawnTile();
                 renderBoard();
                 checkStuckBoard();
@@ -1118,6 +1250,8 @@
         // --- 7. ANSWER SUBMISSION & EVALUATION ENGINE ---
         function submitAnswer(tile) {
             gameState = 'evaluating';
+            playSound('submit');
+
             const letterMap = { red: 'A', blue: 'B', teal: 'C', purple: 'D' };
             const selectedAnswer = letterMap[tile.family];
             const currentQ = QUESTIONS[currentQuestionIdx];
@@ -1128,6 +1262,7 @@
             setTimeout(() => {
                 if (selectedAnswer === currentQ.correct) {
                     // CORRECT ANSWER
+                    playSound('correct');
                     statusArea.className = 'status-area correct';
                     statusArea.innerHTML = '<div>回答正确！</div>';
 
@@ -1154,6 +1289,7 @@
 
                 } else {
                     // WRONG ANSWER
+                    playSound('wrong');
                     statusArea.className = 'status-area wrong';
                     statusArea.innerHTML = '<div>还不对，再试试看！</div>';
 
@@ -1271,6 +1407,8 @@
         function handleLevelComplete() {
             gameState = 'completed';
             saveMapProgress();
+            duckBGM();
+            playSound('levelComplete');
             const modal = document.getElementById('completionModal');
             modal.classList.add('active');
         }
@@ -1280,9 +1418,10 @@
             gameState = 'intro';
             const introOverlay = document.getElementById('introOverlay');
 
-            // 0.1s: Trigger doors sliding open & golden glow
+            // 0.1s: Trigger doors sliding open, golden glow & castle door sound
             setTimeout(() => {
                 introOverlay.classList.add('open');
+                playSound('door');
             }, 100);
 
             // 1.4s: Start overlay fade-out
@@ -1339,15 +1478,22 @@
             else if (['ArrowDown', 'KeyS'].includes(e.code)) move('DOWN');
         });
 
-        // Tutorial Modal Close Button -> Enables Gameplay Input
+        // Tutorial Modal Close Button -> Enables Gameplay Input, unlocks audio & starts continuous BGM
         document.getElementById('btnStartGame').addEventListener('click', () => {
+            unlockAudio();
+            startBGM();
             document.getElementById('tutorialModal').classList.remove('active');
             gameState = 'playing';
         });
 
-        // Map Return Button
+        // Map Return Button & Top Bar Back Button -> Stop BGM before leaving
         document.getElementById('btnReturnMap').addEventListener('click', () => {
+            stopBGM();
             window.location.href = 'index.html';
+        });
+
+        document.getElementById('btnTopBack').addEventListener('click', () => {
+            stopBGM();
         });
 
         // --- 12. INITIALIZATION ---
